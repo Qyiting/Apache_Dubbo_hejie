@@ -73,31 +73,30 @@ public class ServerExample {
         try {
             // 创建用户服务实例
             UserService userService = new UserServiceImpl();
-//
-//            // 注册用户服务 - 默认服务和分组
-//            rpcServer.registerService(UserService.class, userService, "1.0.0", "default");
-//            log.info("用户服务注册成功");
-//
-//            // 注册用户服务 - 版本2.0.0
-//            rpcServer.registerService(UserService.class, userService, "2.0.0", "default");
-//            log.info("用户服务V2注册成功");
-//
-//            // 注册用户服务 - 测试分组
-//            rpcServer.registerService(UserService.class, userService, "1.0.0", "test");
-//            log.info("用户服务测试分组注册成功");
+            // 注册用户服务 - 默认服务和分组
+            rpcServer.registerService(UserService.class, userService, "1.0.0", "default");
+            log.info("用户服务注册成功");
+
+            // 注册用户服务 - 版本2.0.0
+            rpcServer.registerService(UserService.class, userService, "2.0.0", "default");
+            log.info("用户服务V2注册成功");
+
+            // 注册用户服务 - 测试分组
+            rpcServer.registerService(UserService.class, userService, "1.0.0", "test");
+            log.info("用户服务测试分组注册成功");
             
-            // 创建并注册异步用户服务
-            AsyncUserService asyncUserService = new AsyncUserServiceImpl(userService);
-            rpcServer.registerService(AsyncUserService.class, asyncUserService, "1.0.0", "default");
-            log.info("异步用户服务注册成功");
-
-            // 注册异步用户服务 - 版本2.0.0
-            rpcServer.registerService(AsyncUserService.class, asyncUserService, "2.0.0", "default");
-            log.info("异步用户服务V2注册成功");
-
-            // 注册异步用户服务 - 测试分组
-            rpcServer.registerService(AsyncUserService.class, asyncUserService, "1.0.0", "test");
-            log.info("异步用户服务测试分组注册成功");
+//            // 创建并注册异步用户服务
+//            AsyncUserService asyncUserService = new AsyncUserServiceImpl(userService);
+//            rpcServer.registerService(AsyncUserService.class, asyncUserService, "1.0.0", "default");
+//            log.info("异步用户服务注册成功");
+//
+//            // 注册异步用户服务 - 版本2.0.0
+//            rpcServer.registerService(AsyncUserService.class, asyncUserService, "2.0.0", "default");
+//            log.info("异步用户服务V2注册成功");
+//
+//            // 注册异步用户服务 - 测试分组
+//            rpcServer.registerService(AsyncUserService.class, asyncUserService, "1.0.0", "test");
+//            log.info("异步用户服务测试分组注册成功");
             
             //打印服务注册统计
             ServiceProvider serviceProvider = rpcServer.getServiceProvider();

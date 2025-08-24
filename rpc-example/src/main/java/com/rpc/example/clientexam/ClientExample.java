@@ -2,6 +2,8 @@ package com.rpc.example.clientexam;
 
 import com.rpc.client.*;
 import com.rpc.client.factory.RpcProxyFactory;
+import com.rpc.client.loadbalance.LoadBalancer;
+import com.rpc.client.loadbalance.LoadBalancerFactory;
 import com.rpc.client.loadbalance.lfu.LFULoadBalancer;
 import com.rpc.client.loadbalance.random.RandomLoadBalancer;
 import com.rpc.client.loadbalance.robin.RoundRobinLoadBalancer;
@@ -56,15 +58,15 @@ public class ClientExample {
             // LoadBalancer loadBalancer = new RandomLoadBalancer();
             // LoadBalancer loadBalancer = new ConsistentHashLoadBalancer();
             // LoadBalancer loadBalancer = new LRULoadBalancer(10); // 缓存大小为10
-            LFULoadBalancer loadBalancer = new LFULoadBalancer(10);
+            LoadBalancer loadBalancer = LoadBalancerFactory.getLoadBalancer(LoadBalancer.Algorithm.CONSISTENT_HASH);
             log.info("负载均衡器创建完成：{}", loadBalancer.getAlgorithm());
             // 4. 创建RPC客户端，增加最大连接数和超时时间
             rpcClient = new RpcClient(serviceRegistry, loadBalancer, 15000, 20);
             log.info("RPC客户端创建完成");
             // 5. 演示同步调用
-//            demonstrateSyncCalls(rpcClient, serializationType);
+            demonstrateSyncCalls(rpcClient, serializationType);
             // 6. 演示异步调用
-            demonstrateAsyncCalls(rpcClient, serializationType);
+//            demonstrateAsyncCalls(rpcClient, serializationType);
             // 7. 演示并发调用
 //            demonstrateConcurrentCalls(rpcClient);
             // 8. 演示不同版本和分组的服务调用
@@ -72,7 +74,7 @@ public class ClientExample {
             // 9. 演示负载均衡
 //            demonstrateLoadBalancing(rpcClient);
             // 10. 演示新功能：监控指标、健康检查、重试策略
-            demonstrateNewFeatures(rpcClient);
+//            demonstrateNewFeatures(rpcClient);
             log.info("所有示例执行完成");
         } catch (Exception e) {
             log.error("执行客户端示例时发生异常", e);
