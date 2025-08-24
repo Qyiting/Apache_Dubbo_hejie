@@ -1,0 +1,75 @@
+# RPC Consumer Sample Configuration
+server:
+  port: 8082
+  servlet:
+    context-path: /
+
+spring:
+  application:
+    name: rpc-consumer-sample
+  profiles:
+    active: dev
+
+# RPC Framework Configuration
+rpc:
+  enabled: true
+  
+  # Service Registry Configuration
+  registry:
+    type: zookeeper
+    address: localhost:2181
+    session-timeout: 30000
+    connection-timeout: 15000
+    retry-times: 3
+  
+  # Consumer Configuration
+  consumer:
+    timeout: 5000
+    retry-count: 3
+    connection-pool-size: 10
+  
+  # Provider Configuration (not used in consumer, but required for completeness)
+  provider:
+    host: localhost
+    port: 8083
+    serializer: kryo
+    worker-threads: 10
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.hejiexmu.rpc: DEBUG
+    com.rpc: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/rpc-consumer.log
+    max-size: 100MB
+    max-history: 30
+
+# Management Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
+# Application Info
+info:
+  app:
+    name: RPC Consumer Sample
+    description: Spring Boot RPC Framework Consumer Example
+    version: 1.0.0
+    author: hejiexmu
+  java:
+    version: ${java.version}
+  spring:
+    version: ${spring-boot.version}
