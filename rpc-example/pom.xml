@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>com.hejiexmu</groupId>
+        <artifactId>simple-rpc-framework</artifactId>
+        <version>1.0-SNAPSHOT</version>
+    </parent>
+
+    <artifactId>rpc-example</artifactId>
+    <packaging>jar</packaging>
+    <name>rpc-example</name>
+    <description>RPC框架使用实例</description>
+
+    <dependencies>
+        <dependency>
+            <!--rpc核心模块-->
+            <groupId>com.hejiexmu</groupId>
+            <artifactId>rpc-core</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <!--rpc序列化模块-->
+        <dependency>
+            <groupId>com.hejiexmu</groupId>
+            <artifactId>rpc-serialization</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <!--rpc网络通信netty模块-->
+        <dependency>
+            <groupId>com.hejiexmu</groupId>
+            <artifactId>rpc-netty</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <!--rpc注册中心模块-->
+        <dependency>
+            <groupId>com.hejiexmu</groupId>
+            <artifactId>rpc-registry</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <!--rpc客户端模块-->
+        <dependency>
+            <groupId>com.hejiexmu</groupId>
+            <artifactId>rpc-client</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+        <!--rpc服务端模块-->
+        <dependency>
+            <groupId>com.hejiexmu</groupId>
+            <artifactId>rpc-server</artifactId>
+            <version>1.0-SNAPSHOT</version>
+        </dependency>
+    </dependencies>
+
+    <properties>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <configuration>
+                    <mainClass>com.rpc.example.SPILoadBalancerExample</mainClass>
+                    <includeProjectDependencies>true</includeProjectDependencies>
+                    <includePluginDependencies>true</includePluginDependencies>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+
+</project>
