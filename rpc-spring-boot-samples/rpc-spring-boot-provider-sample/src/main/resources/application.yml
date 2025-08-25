@@ -17,7 +17,7 @@ rpc:
   # Service Registry Configuration
   registry:
     type: zookeeper
-    address: localhost:2181
+    address: 192.168.109.103:2181
     session-timeout: 30000
     connection-timeout: 15000
     retry-times: 3
@@ -46,8 +46,10 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   file:
     name: logs/rpc-provider.log
-    max-size: 100MB
-    max-history: 30
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
 
 # Management Endpoints
 management:

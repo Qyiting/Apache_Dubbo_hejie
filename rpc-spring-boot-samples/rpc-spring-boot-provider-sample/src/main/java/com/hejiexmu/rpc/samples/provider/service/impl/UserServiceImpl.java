@@ -3,10 +3,10 @@ package com.hejiexmu.rpc.samples.provider.service.impl;
 import com.hejiexmu.rpc.samples.provider.entity.User;
 import com.hejiexmu.rpc.samples.provider.service.UserService;
 import com.hejiexmu.rpc.spring.boot.annotation.RpcService;
+import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
