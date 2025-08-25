@@ -43,15 +43,15 @@ RpcClient rpcClient = new RpcClient();
 // 创建CGLIB代理工厂
 CglibRpcProxyFactory proxyFactory = new CglibRpcProxyFactory(rpcClient);
 
-// 创建代理对象
-YourServiceClass proxy = proxyFactory.createProxy(YourServiceClass.class);
+// 创建代理对象（使用默认序列化类型）
+YourServiceClass proxy = proxyFactory.createProxy(YourServiceClass.class, (byte) 1);
 ```
 
 ### 2. 基本用法示例
 
 ```java
 // 创建服务代理
-UserService userService = proxyFactory.createProxy(UserServiceImpl.class);
+UserService userService = proxyFactory.createProxy(UserServiceImpl.class, (byte) 1);
 
 // 调用服务方法
 User user = userService.getUserById(1L);
@@ -67,7 +67,8 @@ UserService userService = proxyFactory.createProxy(
     UserServiceImpl.class, 
     "2.0.0", 
     "test-group", 
-    10000L  // 10秒超时
+    10000L,  // 10秒超时
+    (byte) 1  // 序列化类型
 );
 ```
 
@@ -77,7 +78,7 @@ CGLIB也支持异步调用：
 
 ```java
 // 创建异步代理
-AsyncUserService asyncUserService = proxyFactory.createAsyncProxy(AsyncUserServiceImpl.class);
+AsyncUserService asyncUserService = proxyFactory.createAsyncProxy(AsyncUserServiceImpl.class, (byte) 1);
 
 // 异步调用
 CompletableFuture<User> future = asyncUserService.getUserById(1L);
@@ -99,14 +100,14 @@ future.thenAccept(user -> {
 ```java
 // 需要接口
 RpcProxyFactory factory = new RpcProxyFactory(rpcClient);
-UserService userService = factory.createProxy(UserService.class); // 接口
+UserService userService = factory.createProxy(UserService.class, (byte) 1); // 接口
 ```
 
 ### CGLIB动态代理示例
 ```java
 // 可以直接代理类
 CglibRpcProxyFactory factory = new CglibRpcProxyFactory(rpcClient);
-UserServiceImpl userService = factory.createProxy(UserServiceImpl.class); // 类
+UserServiceImpl userService = factory.createProxy(UserServiceImpl.class, (byte) 1); // 类
 ```
 
 ## 迁移指南

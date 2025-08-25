@@ -54,8 +54,11 @@ public class LRUExample {
             // 3. 创建RPC客户端
             RpcClient rpcClient = new RpcClient(serviceRegistry, loadBalancer);
             
-            // 4. 创建服务代理
-            UserService userService = rpcClient.createProxy(UserService.class);
+            // 4. 创建服务代理工厂
+            RpcProxyFactory proxyFactory = new RpcProxyFactory(rpcClient);
+            
+            // 5. 创建服务代理（使用默认序列化类型）
+            UserService userService = proxyFactory.createProxy(UserService.class, (byte) 1);
             
             // 5. 调用服务
             User user = userService.getUserById(1);

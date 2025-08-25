@@ -3,6 +3,7 @@ package com.hejiexmu.rpc.samples.consumer;
 import com.hejiexmu.rpc.samples.consumer.entity.User;
 import com.hejiexmu.rpc.samples.consumer.service.UserService;
 import com.hejiexmu.rpc.spring.boot.config.RpcCompatibilityConfiguration.RpcProgrammaticHelper;
+import com.hejiexmu.rpc.spring.boot.properties.RpcProperties;
 import com.rpc.client.RpcClient;
 import com.rpc.client.factory.RpcProxyFactory;
 import com.rpc.registry.ServiceRegistry;
@@ -11,7 +12,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.stereotype.Component;
 
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -35,6 +35,9 @@ public class ProgrammaticApiExample implements CommandLineRunner {
     
     @Autowired
     private ServiceRegistry serviceRegistry;
+    
+    @Autowired
+    private RpcProperties rpcProperties;
     
     @Override
     public void run(String... args) throws Exception {
@@ -98,8 +101,11 @@ public class ProgrammaticApiExample implements CommandLineRunner {
         log.info("--- 示例2：使用RpcProxyFactory ---");
         
         try {
+            // 获取序列化类型
+            byte serializationType = rpcProperties.getProvider().getSerializer();
+            
             // 创建服务代理
-            UserService userService = rpcProxyFactory.createProxy(UserService.class);
+            UserService userService = rpcProxyFactory.createProxy(UserService.class, serializationType);
             
             // 调用服务方法
             boolean exists = userService.existsByUsername("admin");

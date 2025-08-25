@@ -65,7 +65,7 @@ public class ConsistentHashExample {
             
             // 4. 创建服务代理
             RpcProxyFactory proxyFactory = new RpcProxyFactory(rpcClient);
-            UserService userService = proxyFactory.createProxy(UserService.class);
+            UserService userService = proxyFactory.createProxy(UserService.class, (byte) 1);
             
             // 5. 调用服务
             User user = userService.getUserById(1L);
