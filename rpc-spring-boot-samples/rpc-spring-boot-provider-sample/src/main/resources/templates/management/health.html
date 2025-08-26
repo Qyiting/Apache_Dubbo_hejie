@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>健康监控 - RPC Provider 管理界面</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .health-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+        .health-card:hover {
+            transform: translateY(-2px);
+        }
+        .status-up {
+            background: linear-gradient(135deg, #28a745, #20c997);
+            color: white;
+        }
+        .status-down {
+            background: linear-gradient(135deg, #dc3545, #fd7e14);
+            color: white;
+        }
+        .memory-progress {
+            height: 8px;
+            border-radius: 4px;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- 返回按钮 -->
+        <div class="mb-3">
+            <a href="/management" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 返回管理界面
+            </a>
+        </div>
+
+        <!-- 页面标题 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-heart-pulse"></i> 健康监控</h2>
+            <button class="btn btn-primary" onclick="refreshHealthData()">
+                <i class="bi bi-arrow-clockwise"></i> 刷新数据
+            </button>
+        </div>
+
+        <!-- 健康状态概览 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card health-card status-up" id="health-status-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-check-circle-fill fs-1 mb-2"></i>
+                        <h4 id="health-status">健康</h4>
+                        <small id="health-timestamp">-</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card health-card">
+                    <div class="card-body">
+                        <h6 class="card-title">JVM 版本</h6>
+                        <h4 id="java-version">-</h4>
+                        <small class="text-muted">Java Runtime</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card health-card">
+                    <div class="card-body">
+                        <h6 class="card-title">处理器核心</h6>
+                        <h4 id="processors">-</h4>
+                        <small class="text-muted">Available Cores</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card health-card">
+                    <div class="card-body">
+                        <h6 class="card-title">操作系统</h6>
+                        <h4 id="os-name">-</h4>
+                        <small class="text-muted">Operating System</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 内存使用情况 -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card health-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-memory"></i> 堆内存使用</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>已使用: <span id="heap-used">-</span></span>
+                            <span>最大: <span id="heap-max">-</span></span>
+                        </div>
+                        <div class="progress memory-progress">
+                            <div class="progress-bar" id="heap-progress" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted mt-2 d-block">使用率: <span id="heap-percentage">0%</span></small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card health-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-hdd"></i> 非堆内存使用</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between mb-2">
+                            <span>已使用: <span id="nonheap-used">-</span></span>
+                            <span>最大: <span id="nonheap-max">-</span></span>
+                        </div>
+                        <div class="progress memory-progress">
+                            <div class="progress-bar bg-info" id="nonheap-progress" role="progressbar" style="width: 0%"></div>
+                        </div>
+                        <small class="text-muted mt-2 d-block">使用率: <span id="nonheap-percentage">0%</span></small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 内存使用趋势图 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card health-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-graph-up"></i> 内存使用趋势</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="memoryChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 详细健康信息 -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card health-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-info-circle"></i> 系统信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-borderless">
+                            <tbody id="system-info">
+                                <tr><td><strong>Java版本:</strong></td><td id="system-java-version">-</td></tr>
+                                <tr><td><strong>操作系统:</strong></td><td id="system-os">-</td></tr>
+                                <tr><td><strong>处理器数量:</strong></td><td id="system-processors">-</td></tr>
+                                <tr><td><strong>总内存:</strong></td><td id="system-total-memory">-</td></tr>
+                                <tr><td><strong>可用内存:</strong></td><td id="system-free-memory">-</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card health-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-activity"></i> 运行时信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-borderless">
+                            <tbody id="runtime-info">
+                                <tr><td><strong>启动时间:</strong></td><td id="runtime-start-time">-</td></tr>
+                                <tr><td><strong>运行时长:</strong></td><td id="runtime-uptime">-</td></tr>
+                                <tr><td><strong>堆内存已用:</strong></td><td id="runtime-heap-used">-</td></tr>
+                                <tr><td><strong>堆内存最大:</strong></td><td id="runtime-heap-max">-</td></tr>
+                                <tr><td><strong>非堆内存已用:</strong></td><td id="runtime-nonheap-used">-</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Actuator增强信息 -->
+        <div class="row mt-4">
+            <div class="col-md-4">
+                <div class="card health-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-database"></i> 数据库健康状态</h5>
+                    </div>
+                    <div class="card-body" id="databaseHealth">
+                        <!-- 数据库健康状态将在这里显示 -->
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card health-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-diagram-3"></i> 注册中心状态</h5>
+                    </div>
+                    <div class="card-body" id="registryHealth">
+                        <!-- 注册中心状态将在这里显示 -->
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card health-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-gear"></i> RPC服务状态</h5>
+                    </div>
+                    <div class="card-body" id="rpcProviderHealth">
+                        <!-- RPC服务状态将在这里显示 -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let memoryChart;
+        let memoryData = {
+            labels: [],
+            heapUsed: [],
+            nonHeapUsed: []
+        };
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initMemoryChart();
+            loadHealthData();
+            // 每10秒自动刷新数据
+            setInterval(loadHealthData, 10000);
+        });
+
+        // 初始化内存使用趋势图
+        function initMemoryChart() {
+            const ctx = document.getElementById('memoryChart').getContext('2d');
+            memoryChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: memoryData.labels,
+                    datasets: [{
+                        label: '堆内存使用 (MB)',
+                        data: memoryData.heapUsed,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        tension: 0.1
+                    }, {
+                        label: '非堆内存使用 (MB)',
+                        data: memoryData.nonHeapUsed,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '内存使用量 (MB)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '时间'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        }
+                    }
+                }
+            });
+        }
+
+        // 加载健康监控数据
+        function loadHealthData() {
+            fetch('/api/management/health')
+                .then(response => response.json())
+                .then(data => {
+                    updateHealthStatus(data);
+                    updateMemoryInfo(data.memory);
+                    updateSystemInfo(data.system);
+                    updateMemoryChart(data.memory);
+                    updateActuatorInfo(data);
+                })
+                .catch(error => {
+                    console.error('加载健康数据失败:', error);
+                    updateHealthStatusError();
+                });
+        }
+
+        // 更新健康状态
+        function updateHealthStatus(data) {
+            const statusCard = document.getElementById('health-status-card');
+            const statusText = document.getElementById('health-status');
+            const timestamp = document.getElementById('health-timestamp');
+            
+            if (data.status === 'UP') {
+                statusCard.className = 'card health-card status-up';
+                statusText.textContent = '健康';
+                document.querySelector('#health-status-card i').className = 'bi bi-check-circle-fill fs-1 mb-2';
+            } else {
+                statusCard.className = 'card health-card status-down';
+                statusText.textContent = '异常';
+                document.querySelector('#health-status-card i').className = 'bi bi-x-circle-fill fs-1 mb-2';
+            }
+            
+            timestamp.textContent = data.timestamp || new Date().toLocaleString();
+        }
+
+        // 更新健康状态错误
+        function updateHealthStatusError() {
+            const statusCard = document.getElementById('health-status-card');
+            const statusText = document.getElementById('health-status');
+            
+            statusCard.className = 'card health-card status-down';
+            statusText.textContent = '连接失败';
+            document.querySelector('#health-status-card i').className = 'bi bi-exclamation-triangle-fill fs-1 mb-2';
+        }
+
+        // 更新内存信息
+        function updateMemoryInfo(memory) {
+            if (!memory) return;
+            
+            // 堆内存
+            const heapUsed = Math.round(memory.heapUsed / 1024 / 1024);
+            const heapMax = Math.round(memory.heapMax / 1024 / 1024);
+            const heapPercentage = Math.round((memory.heapUsed / memory.heapMax) * 100);
+            
+            document.getElementById('heap-used').textContent = heapUsed + ' MB';
+            document.getElementById('heap-max').textContent = heapMax + ' MB';
+            document.getElementById('heap-percentage').textContent = heapPercentage + '%';
+            document.getElementById('heap-progress').style.width = heapPercentage + '%';
+            
+            // 非堆内存
+            const nonHeapUsed = Math.round(memory.nonHeapUsed / 1024 / 1024);
+            document.getElementById('nonheap-used').textContent = nonHeapUsed + ' MB';
+            document.getElementById('nonheap-max').textContent = 'N/A';
+            document.getElementById('nonheap-percentage').textContent = 'N/A';
+            document.getElementById('nonheap-progress').style.width = '50%'; // 默认显示
+            
+            // 更新运行时信息
+            document.getElementById('runtime-heap-used').textContent = heapUsed + ' MB';
+            document.getElementById('runtime-heap-max').textContent = heapMax + ' MB';
+            document.getElementById('runtime-nonheap-used').textContent = nonHeapUsed + ' MB';
+        }
+
+        // 更新系统信息
+        function updateSystemInfo(system) {
+            if (!system) return;
+            
+            document.getElementById('java-version').textContent = system.javaVersion || '-';
+            document.getElementById('processors').textContent = system.processors || '-';
+            document.getElementById('os-name').textContent = system.osName || '-';
+            
+            // 详细系统信息
+            document.getElementById('system-java-version').textContent = system.javaVersion || '-';
+            document.getElementById('system-os').textContent = system.osName || '-';
+            document.getElementById('system-processors').textContent = system.processors || '-';
+        }
+        
+        // 更新Actuator增强信息
+        function updateActuatorInfo(data) {
+            // 更新数据库健康状态
+            if (data.components && data.components.db) {
+                const databaseHealth = document.getElementById('databaseHealth');
+                const dbData = data.components.db;
+                const statusClass = dbData.status === 'UP' ? 'success' : 'danger';
+                
+                databaseHealth.innerHTML = `
+                    <p><strong>状态:</strong> <span class="badge bg-${statusClass}">${dbData.status}</span></p>
+                    <p><strong>数据库:</strong> ${dbData.details?.database || 'N/A'}</p>
+                    <p><strong>验证查询:</strong> ${dbData.details?.validationQuery || 'N/A'}</p>
+                    <p><strong>响应时间:</strong> ${dbData.details?.responseTime || 'N/A'}</p>
+                `;
+            }
+            
+            // 更新注册中心状态
+            if (data.components && data.components.registry) {
+                const registryHealth = document.getElementById('registryHealth');
+                const regData = data.components.registry;
+                const statusClass = regData.status === 'UP' ? 'success' : 'danger';
+                
+                registryHealth.innerHTML = `
+                    <p><strong>状态:</strong> <span class="badge bg-${statusClass}">${regData.status}</span></p>
+                    <p><strong>类型:</strong> ${regData.details?.type || 'N/A'}</p>
+                    <p><strong>地址:</strong> ${regData.details?.address || 'N/A'}</p>
+                    <p><strong>连接状态:</strong> ${regData.details?.connected ? '已连接' : '未连接'}</p>
+                `;
+            }
+            
+            // 更新RPC服务状态
+            if (data.components && data.components.rpcProvider) {
+                const rpcHealth = document.getElementById('rpcProviderHealth');
+                const rpcData = data.components.rpcProvider;
+                const statusClass = rpcData.status === 'UP' ? 'success' : 'danger';
+                
+                rpcHealth.innerHTML = `
+                    <p><strong>状态:</strong> <span class="badge bg-${statusClass}">${rpcData.status}</span></p>
+                    <p><strong>端口:</strong> ${rpcData.details?.port || 'N/A'}</p>
+                    <p><strong>活跃连接:</strong> ${rpcData.details?.activeConnections || 0}</p>
+                    <p><strong>总调用次数:</strong> ${rpcData.details?.totalCalls || 0}</p>
+                    <p><strong>成功调用:</strong> ${rpcData.details?.successCalls || 0}</p>
+                    <p><strong>失败调用:</strong> ${rpcData.details?.failedCalls || 0}</p>
+                    <p><strong>平均响应时间:</strong> ${rpcData.details?.avgResponseTime || 0}ms</p>
+                    <p><strong>服务注册数:</strong> ${rpcData.details?.serviceRegistrations || 0}</p>
+                    <p><strong>最后检查:</strong> ${rpcData.details?.lastCheck ? new Date(rpcData.details.lastCheck).toLocaleString() : 'N/A'}</p>
+                `;
+            }
+        }
+
+        // 更新内存趋势图
+        function updateMemoryChart(memory) {
+            if (!memory) return;
+            
+            const now = new Date().toLocaleTimeString();
+            const heapUsedMB = Math.round(memory.heapUsed / 1024 / 1024);
+            const nonHeapUsedMB = Math.round(memory.nonHeapUsed / 1024 / 1024);
+            
+            // 保持最近20个数据点
+            if (memoryData.labels.length >= 20) {
+                memoryData.labels.shift();
+                memoryData.heapUsed.shift();
+                memoryData.nonHeapUsed.shift();
+            }
+            
+            memoryData.labels.push(now);
+            memoryData.heapUsed.push(heapUsedMB);
+            memoryData.nonHeapUsed.push(nonHeapUsedMB);
+            
+            memoryChart.update();
+        }
+
+        // 刷新健康数据
+        function refreshHealthData() {
+            loadHealthData();
+        }
+
+        // 格式化字节数
+        function formatBytes(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+    </script>
+</body>
+</html>

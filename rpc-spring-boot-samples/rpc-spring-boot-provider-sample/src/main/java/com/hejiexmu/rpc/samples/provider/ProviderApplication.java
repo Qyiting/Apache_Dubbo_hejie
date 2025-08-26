@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
+import org.springframework.core.env.Environment;
 
 /**
  * RPC服务提供者示例应用
@@ -22,9 +23,15 @@ public class ProviderApplication {
         
         ConfigurableApplicationContext context = SpringApplication.run(ProviderApplication.class, args);
         
+        // 获取配置信息
+        Environment env = context.getEnvironment();
+        String webPort = env.getProperty("server.port", "8081");
+        String rpcPort = env.getProperty("rpc.provider.port", "9081");
+        String host = env.getProperty("rpc.provider.host", "localhost");
+        
         log.info("RPC服务提供者启动成功！");
-        log.info("服务地址：localhost:8081");
-        log.info("Web管理界面：http://localhost:8080");
+        log.info("服务地址：{}:{}", host, rpcPort);
+        log.info("Web管理界面：http://{}:{}", host, webPort);
         log.info("按 Ctrl+C 停止服务");
         
         // 添加优雅关闭钩子
@@ -34,4 +41,6 @@ public class ProviderApplication {
             log.info("RPC服务提供者已关闭");
         }));
     }
+    
+
 }

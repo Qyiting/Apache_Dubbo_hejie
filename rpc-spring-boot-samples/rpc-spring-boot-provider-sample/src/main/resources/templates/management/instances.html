@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>实例管理 - RPC Provider 管理界面</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .instance-card {
+            transition: transform 0.2s;
+            border-left: 4px solid #007bff;
+        }
+        .instance-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            font-size: 0.8em;
+        }
+        .metric-item {
+            border-bottom: 1px solid #eee;
+            padding: 8px 0;
+        }
+        .metric-item:last-child {
+            border-bottom: none;
+        }
+        .action-btn {
+            margin: 2px;
+        }
+        .log-container {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+        }
+        .log-line {
+            padding: 2px 8px;
+            border-bottom: 1px solid #eee;
+        }
+        .log-line:hover {
+            background: #e9ecef;
+        }
+        .log-error { color: #dc3545; }
+        .log-warn { color: #ffc107; }
+        .log-info { color: #17a2b8; }
+        .log-debug { color: #6c757d; }
+    </style>
+</head>
+<body>
+    <div class="container-fluid mt-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h2><i class="bi bi-server"></i> 实例管理</h2>
+                    <div>
+                        <button class="btn btn-outline-primary" onclick="refreshInstances()">
+                            <i class="bi bi-arrow-clockwise"></i> 刷新
+                        </button>
+                        <button class="btn btn-primary" onclick="addInstance()">
+                            <i class="bi bi-plus-circle"></i> 添加实例
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 实例列表 -->
+        <div class="row" id="instances-container">
+            <!-- 实例卡片将通过JavaScript动态加载 -->
+        </div>
+
+        <!-- 实例详情模态框 -->
+        <div class="modal fade" id="instanceDetailModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">实例详情</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <h6>基本信息</h6>
+                                <div id="instance-basic-info">
+                                    <!-- 基本信息将通过JavaScript填充 -->
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <h6>性能指标</h6>
+                                <div id="instance-metrics">
+                                    <!-- 性能指标将通过JavaScript填充 -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-4">
+                            <div class="col-12">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <h6>实时日志</h6>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-secondary" onclick="clearLogs()">
+                                            <i class="bi bi-trash"></i> 清空
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-primary" onclick="exportLogs()">
+                                            <i class="bi bi-download"></i> 导出
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="log-container" id="instance-logs">
+                                    <!-- 日志将通过JavaScript填充 -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                        <button type="button" class="btn btn-warning" onclick="restartInstance()">
+                            <i class="bi bi-arrow-clockwise"></i> 重启实例
+                        </button>
+                        <button type="button" class="btn btn-danger" onclick="stopInstance()">
+                            <i class="bi bi-stop-circle"></i> 停止实例
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentInstanceId = null;
+        let logUpdateInterval = null;
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadInstances();
+        });
+
+        // 加载实例列表
+        function loadInstances() {
+            fetch('/api/management/instances')
+                .then(response => response.json())
+                .then(data => {
+                    displayInstances(data);
+                })
+                .catch(error => {
+                    console.error('加载实例列表失败:', error);
+                    showAlert('加载实例列表失败', 'danger');
+                });
+        }
+
+        // 显示实例列表
+        function displayInstances(instances) {
+            const container = document.getElementById('instances-container');
+            container.innerHTML = '';
+
+            if (!instances || instances.length === 0) {
+                container.innerHTML = '<div class="col-12"><div class="alert alert-info">暂无实例数据</div></div>';
+                return;
+            }
+
+            instances.forEach(instance => {
+                const statusClass = getStatusClass(instance.status);
+                const statusIcon = getStatusIcon(instance.status);
+                
+                const instanceCard = `
+                    <div class="col-md-6 col-lg-4 mb-4">
+                        <div class="card instance-card h-100">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">${instance.name}</h6>
+                                <span class="badge ${statusClass} status-badge">
+                                    <i class="bi ${statusIcon}"></i> ${instance.status}
+                                </span>
+                            </div>
+                            <div class="card-body">
+                                <div class="metric-item">
+                                    <strong>地址:</strong> ${instance.host}:${instance.port}
+                                </div>
+                                <div class="metric-item">
+                                    <strong>启动时间:</strong> ${instance.startTime}
+                                </div>
+                                <div class="metric-item">
+                                    <strong>内存使用:</strong> ${instance.memoryUsage}
+                                </div>
+                                <div class="metric-item">
+                                    <strong>RPC调用:</strong> ${instance.rpcCalls}
+                                </div>
+                                <div class="metric-item">
+                                    <strong>成功调用:</strong> ${instance.successCalls || 0}
+                                </div>
+                                <div class="metric-item">
+                                    <strong>失败调用:</strong> ${instance.failedCalls || 0}
+                                </div>
+                                <div class="metric-item">
+                                    <strong>连接数:</strong> ${instance.connections}
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <button class="btn btn-sm btn-primary action-btn" onclick="viewInstanceDetail('${instance.id}')">
+                                    <i class="bi bi-eye"></i> 详情
+                                </button>
+                                <button class="btn btn-sm btn-info action-btn" onclick="viewInstanceLogs('${instance.id}')">
+                                    <i class="bi bi-file-text"></i> 日志
+                                </button>
+                                <button class="btn btn-sm btn-warning action-btn" onclick="restartInstance('${instance.id}')">
+                                    <i class="bi bi-arrow-clockwise"></i> 重启
+                                </button>
+                                <button class="btn btn-sm btn-danger action-btn" onclick="stopInstance('${instance.id}')">
+                                    <i class="bi bi-stop-circle"></i> 停止
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.innerHTML += instanceCard;
+            });
+        }
+
+        // 获取状态样式类
+        function getStatusClass(status) {
+            switch(status.toLowerCase()) {
+                case 'running': return 'bg-success';
+                case 'stopped': return 'bg-danger';
+                case 'starting': return 'bg-warning';
+                case 'error': return 'bg-danger';
+                default: return 'bg-secondary';
+            }
+        }
+
+        // 获取状态图标
+        function getStatusIcon(status) {
+            switch(status.toLowerCase()) {
+                case 'running': return 'bi-play-circle-fill';
+                case 'stopped': return 'bi-stop-circle-fill';
+                case 'starting': return 'bi-hourglass-split';
+                case 'error': return 'bi-exclamation-triangle-fill';
+                default: return 'bi-question-circle-fill';
+            }
+        }
+
+        // 查看实例详情
+        function viewInstanceDetail(instanceId) {
+            currentInstanceId = instanceId;
+            
+            // 获取实例详细信息
+            fetch(`/api/management/instances/${instanceId}`)
+                .then(response => response.json())
+                .then(data => {
+                    displayInstanceDetail(data);
+                    // 显示模态框
+                    const modal = new bootstrap.Modal(document.getElementById('instanceDetailModal'));
+                    modal.show();
+                    // 开始日志更新
+                    startLogUpdate(instanceId);
+                })
+                .catch(error => {
+                    console.error('获取实例详情失败:', error);
+                    showAlert('获取实例详情失败', 'danger');
+                });
+        }
+
+        // 显示实例详情
+        function displayInstanceDetail(instance) {
+            // 基本信息
+            const basicInfo = `
+                <div class="metric-item"><strong>实例ID:</strong> ${instance.id}</div>
+                <div class="metric-item"><strong>名称:</strong> ${instance.name}</div>
+                <div class="metric-item"><strong>状态:</strong> <span class="badge ${getStatusClass(instance.status)}">${instance.status}</span></div>
+                <div class="metric-item"><strong>地址:</strong> ${instance.host}:${instance.port}</div>
+                <div class="metric-item"><strong>启动时间:</strong> ${instance.startTime}</div>
+                <div class="metric-item"><strong>运行时长:</strong> ${instance.uptime}</div>
+                <div class="metric-item"><strong>版本:</strong> ${instance.version}</div>
+            `;
+            document.getElementById('instance-basic-info').innerHTML = basicInfo;
+
+            // 性能指标
+            const metrics = `
+                <div class="metric-item"><strong>内存使用:</strong> ${instance.memoryUsage}</div>
+                <div class="metric-item"><strong>CPU使用率:</strong> ${instance.cpuUsage}</div>
+                <div class="metric-item"><strong>线程数:</strong> ${instance.threadCount}</div>
+                <div class="metric-item"><strong>RPC调用总数:</strong> ${instance.rpcCalls}</div>
+                <div class="metric-item"><strong>成功调用:</strong> ${instance.successCalls}</div>
+                <div class="metric-item"><strong>失败调用:</strong> ${instance.failedCalls}</div>
+                <div class="metric-item"><strong>平均响应时间:</strong> ${instance.avgResponseTime}ms</div>
+                <div class="metric-item"><strong>当前连接数:</strong> ${instance.connections}</div>
+            `;
+            document.getElementById('instance-metrics').innerHTML = metrics;
+        }
+
+        // 开始日志更新
+        function startLogUpdate(instanceId) {
+            // 清除之前的定时器
+            if (logUpdateInterval) {
+                clearInterval(logUpdateInterval);
+            }
+            
+            // 立即加载一次日志
+            loadInstanceLogs(instanceId);
+            
+            // 每3秒更新一次日志
+            logUpdateInterval = setInterval(() => {
+                loadInstanceLogs(instanceId);
+            }, 3000);
+        }
+
+        // 加载实例日志
+        function loadInstanceLogs(instanceId) {
+            fetch(`/api/management/instances/${instanceId}/logs?lines=100`)
+                .then(response => response.json())
+                .then(data => {
+                    displayLogs(data.logs);
+                })
+                .catch(error => {
+                    console.error('加载日志失败:', error);
+                });
+        }
+
+        // 显示日志
+        function displayLogs(logs) {
+            const container = document.getElementById('instance-logs');
+            container.innerHTML = '';
+            
+            if (!logs || logs.length === 0) {
+                container.innerHTML = '<div class="text-muted p-2">暂无日志数据</div>';
+                return;
+            }
+            
+            logs.forEach(log => {
+                const logClass = getLogClass(log.level);
+                const logLine = `
+                    <div class="log-line ${logClass}">
+                        <span class="text-muted">[${log.timestamp}]</span>
+                        <span class="fw-bold">[${log.level}]</span>
+                        <span>${log.message}</span>
+                    </div>
+                `;
+                container.innerHTML += logLine;
+            });
+            
+            // 滚动到底部
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 获取日志级别样式
+        function getLogClass(level) {
+            switch(level.toLowerCase()) {
+                case 'error': return 'log-error';
+                case 'warn': return 'log-warn';
+                case 'info': return 'log-info';
+                case 'debug': return 'log-debug';
+                default: return '';
+            }
+        }
+
+        // 清空日志
+        function clearLogs() {
+            document.getElementById('instance-logs').innerHTML = '<div class="text-muted p-2">日志已清空</div>';
+        }
+
+        // 导出日志
+        function exportLogs() {
+            if (!currentInstanceId) return;
+            
+            fetch(`/api/management/instances/${currentInstanceId}/logs/export`)
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `instance-${currentInstanceId}-logs.txt`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(a);
+                })
+                .catch(error => {
+                    console.error('导出日志失败:', error);
+                    showAlert('导出日志失败', 'danger');
+                });
+        }
+
+        // 重启实例
+        function restartInstance(instanceId) {
+            if (!instanceId && currentInstanceId) {
+                instanceId = currentInstanceId;
+            }
+            
+            if (!confirm('确定要重启此实例吗？')) return;
+            
+            fetch(`/api/management/instances/${instanceId}/restart`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('实例重启成功', 'success');
+                    loadInstances();
+                } else {
+                    showAlert('实例重启失败: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('重启实例失败:', error);
+                showAlert('重启实例失败', 'danger');
+            });
+        }
+
+        // 停止实例
+        function stopInstance(instanceId) {
+            if (!instanceId && currentInstanceId) {
+                instanceId = currentInstanceId;
+            }
+            
+            if (!confirm('确定要停止此实例吗？')) return;
+            
+            fetch(`/api/management/instances/${instanceId}/stop`, {
+                method: 'POST'
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('实例停止成功', 'success');
+                    loadInstances();
+                } else {
+                    showAlert('实例停止失败: ' + data.message, 'danger');
+                }
+            })
+            .catch(error => {
+                console.error('停止实例失败:', error);
+                showAlert('停止实例失败', 'danger');
+            });
+        }
+
+        // 刷新实例列表
+        function refreshInstances() {
+            loadInstances();
+            showAlert('实例列表已刷新', 'info');
+        }
+
+        // 添加实例
+        function addInstance() {
+            // TODO: 实现添加实例功能
+            showAlert('添加实例功能开发中...', 'info');
+        }
+
+        // 查看实例日志
+        function viewInstanceLogs(instanceId) {
+            viewInstanceDetail(instanceId);
+        }
+
+        // 显示提示信息
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.cssText = 'top: 20px; right: 20px; z-index: 9999; min-width: 300px;';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
+            
+            // 3秒后自动消失
+            setTimeout(() => {
+                if (alertDiv.parentNode) {
+                    alertDiv.parentNode.removeChild(alertDiv);
+                }
+            }, 3000);
+        }
+
+        // 模态框关闭时清除日志更新定时器
+        document.getElementById('instanceDetailModal').addEventListener('hidden.bs.modal', function() {
+            if (logUpdateInterval) {
+                clearInterval(logUpdateInterval);
+                logUpdateInterval = null;
+            }
+            currentInstanceId = null;
+        });
+    </script>
+</body>
+</html>

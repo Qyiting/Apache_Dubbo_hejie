@@ -304,6 +304,82 @@ public class ZookeeperServiceRegistry implements ServiceRegistry {
         }
     }
 
+    /**
+     * 获取所有服务实例（递归遍历所有版本和分组）
+     */
+    public List<ServiceInfo> getAllServiceInstances() throws Exception {
+        List<ServiceInfo> allInstances = new ArrayList<>();
+        try {
+            if(client.checkExists().forPath(SERVICE_PATH_PREFIX) == null) {
+                return allInstances;
+            }
+            
+            // 获取所有服务名称
+            List<String> serviceNames = client.getChildren().forPath(SERVICE_PATH_PREFIX);
+            log.debug("发现服务名称: {}", serviceNames);
+            
+            for (String serviceName : serviceNames) {
+                // 递归遍历每个服务的所有版本和分组
+                List<ServiceInfo> serviceInstances = discoverAllVersionsAndGroups(serviceName);
+                allInstances.addAll(serviceInstances);
+            }
+            
+            log.info("总共发现 {} 个服务实例", allInstances.size());
+        } catch (Exception e) {
+            log.error("获取所有服务实例失败", e);
+            throw e;
+        }
+        return allInstances;
+    }
+    
+    /**
+     * 发现指定服务名称下的所有版本和分组的实例
+     */
+    private List<ServiceInfo> discoverAllVersionsAndGroups(String serviceName) throws Exception {
+        List<ServiceInfo> instances = new ArrayList<>();
+        String serviceBasePath = SERVICE_PATH_PREFIX + "/" + serviceName;
+        
+        if (client.checkExists().forPath(serviceBasePath) == null) {
+            return instances;
+        }
+        
+        // 递归遍历版本目录
+        traverseServicePath(serviceBasePath, serviceName, instances);
+        
+        return instances;
+    }
+    
+    /**
+     * 递归遍历服务路径，发现所有实例
+     */
+    private void traverseServicePath(String currentPath, String serviceName, List<ServiceInfo> instances) throws Exception {
+        List<String> children = client.getChildren().forPath(currentPath);
+        
+        for (String child : children) {
+            String childPath = currentPath + "/" + child;
+            
+            if (child.startsWith("instance-")) {
+                // 这是一个实例节点，解析服务数据
+                try {
+                    byte[] data = client.getData().forPath(childPath);
+                    if (data != null) {
+                        ServiceInfo serviceInfo = parseServiceData(new String(data));
+                        if (serviceInfo != null) {
+                            serviceInfo.setServiceName(serviceName);
+                            instances.add(serviceInfo);
+                            log.debug("发现服务实例: {} -> {}:{}", serviceName, serviceInfo.getAddress(), serviceInfo.getPort());
+                        }
+                    }
+                } catch (Exception e) {
+                    log.warn("解析服务实例数据失败: {}", childPath, e);
+                }
+            } else {
+                // 这是版本或分组目录，继续递归
+                traverseServicePath(childPath, serviceName, instances);
+            }
+        }
+    }
+
     @Override
     public boolean exists(String serviceName) throws Exception {
         String serviceTypePath = buildServiceTypePath(serviceName, null, null);

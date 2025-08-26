@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>日志查看 - RPC Provider 管理界面</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .log-container {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            border-radius: 8px;
+            padding: 1rem;
+            height: 500px;
+            overflow-y: auto;
+            border: 1px solid #333;
+        }
+        .log-line {
+            margin-bottom: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .log-line:hover {
+            background-color: #2d2d30;
+        }
+        .log-level-ERROR {
+            color: #f48771;
+            background-color: rgba(244, 135, 113, 0.1);
+        }
+        .log-level-WARN {
+            color: #dcdcaa;
+            background-color: rgba(220, 220, 170, 0.1);
+        }
+        .log-level-INFO {
+            color: #9cdcfe;
+            background-color: rgba(156, 220, 254, 0.1);
+        }
+        .log-level-DEBUG {
+            color: #b5cea8;
+            background-color: rgba(181, 206, 168, 0.1);
+        }
+        .log-level-TRACE {
+            color: #808080;
+            background-color: rgba(128, 128, 128, 0.1);
+        }
+        .log-timestamp {
+            color: #569cd6;
+            font-weight: bold;
+        }
+        .log-logger {
+            color: #4ec9b0;
+        }
+        .log-message {
+            color: #d4d4d4;
+        }
+        .filter-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+        .stats-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 12px;
+            border: none;
+        }
+        .level-badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.5rem;
+            margin: 0.1rem;
+        }
+        .auto-scroll-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background-color: rgba(0, 123, 255, 0.8);
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            display: none;
+        }
+        .log-search-highlight {
+            background-color: #ffeb3b;
+            color: #000;
+            padding: 0.1rem 0.2rem;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- 返回按钮 -->
+        <div class="mb-3">
+            <a href="/management" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 返回管理界面
+            </a>
+        </div>
+
+        <!-- 页面标题 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-file-text"></i> 日志查看</h2>
+            <div>
+                <button class="btn btn-outline-info me-2" onclick="exportLogs()">
+                    <i class="bi bi-download"></i> 导出日志
+                </button>
+                <button class="btn btn-outline-warning me-2" onclick="clearLogs()">
+                    <i class="bi bi-trash"></i> 清空显示
+                </button>
+                <button class="btn btn-primary" onclick="refreshLogs()">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新日志
+                </button>
+            </div>
+        </div>
+
+        <!-- 日志统计 -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-exclamation-triangle fs-1 mb-2"></i>
+                        <h5>错误日志</h5>
+                        <h3 id="error-count">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-exclamation-circle fs-1 mb-2"></i>
+                        <h5>警告日志</h5>
+                        <h3 id="warn-count">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-info-circle fs-1 mb-2"></i>
+                        <h5>信息日志</h5>
+                        <h3 id="info-count">0</h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card stats-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-file-text fs-1 mb-2"></i>
+                        <h5>总日志数</h5>
+                        <h3 id="total-count">0</h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志过滤器 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card filter-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-funnel"></i> 日志过滤器</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label class="form-label">日志级别</label>
+                                <select class="form-select" id="log-level-filter" onchange="applyFilters()">
+                                    <option value="">全部级别</option>
+                                    <option value="ERROR">ERROR</option>
+                                    <option value="WARN">WARN</option>
+                                    <option value="INFO">INFO</option>
+                                    <option value="DEBUG">DEBUG</option>
+                                    <option value="TRACE">TRACE</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label class="form-label">Logger名称</label>
+                                <input type="text" class="form-control" id="logger-filter" placeholder="输入Logger名称" oninput="applyFilters()">
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label">搜索关键词</label>
+                                <input type="text" class="form-control" id="search-filter" placeholder="搜索日志内容" oninput="applyFilters()">
+                            </div>
+                            <div class="col-md-2">
+                                <label class="form-label">自动滚动</label>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="auto-scroll" checked>
+                                    <label class="form-check-label" for="auto-scroll">启用</label>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-6">
+                                <label class="form-label">时间范围</label>
+                                <div class="input-group">
+                                    <input type="datetime-local" class="form-control" id="start-time" onchange="applyFilters()">
+                                    <span class="input-group-text">至</span>
+                                    <input type="datetime-local" class="form-control" id="end-time" onchange="applyFilters()">
+                                </div>
+                            </div>
+                            <div class="col-md-6 d-flex align-items-end">
+                                <button class="btn btn-outline-secondary me-2" onclick="resetFilters()">
+                                    <i class="bi bi-arrow-counterclockwise"></i> 重置过滤器
+                                </button>
+                                <button class="btn btn-outline-primary" onclick="toggleRealTime()">
+                                    <i class="bi bi-play-circle" id="realtime-icon"></i>
+                                    <span id="realtime-text">开始实时</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 日志显示区域 -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0"><i class="bi bi-terminal"></i> 日志内容</h5>
+                        <div>
+                            <span class="badge bg-secondary me-2" id="filtered-count">显示: 0 条</span>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="scrollToTop()">
+                                <i class="bi bi-arrow-up"></i> 顶部
+                            </button>
+                            <button class="btn btn-sm btn-outline-secondary" onclick="scrollToBottom()">
+                                <i class="bi bi-arrow-down"></i> 底部
+                            </button>
+                        </div>
+                    </div>
+                    <div class="card-body p-0 position-relative">
+                        <div class="auto-scroll-indicator" id="auto-scroll-indicator">
+                            <i class="bi bi-arrow-down"></i> 自动滚动中...
+                        </div>
+                        <div class="log-container" id="log-container">
+                            <!-- 日志内容将在这里动态加载 -->
+                            <div class="text-center text-muted py-5">
+                                <i class="bi bi-hourglass-split fs-1 mb-3"></i>
+                                <p>正在加载日志数据...</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let allLogs = [];
+        let filteredLogs = [];
+        let isRealTimeMode = false;
+        let realTimeInterval = null;
+        let logStats = { ERROR: 0, WARN: 0, INFO: 0, DEBUG: 0, TRACE: 0, total: 0 };
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadLogs();
+            setupAutoScroll();
+        });
+
+        // 加载日志数据
+        function loadLogs() {
+            fetch('/api/management/logs')
+                .then(response => response.json())
+                .then(data => {
+                    allLogs = data.logs || [];
+                    updateLogStats();
+                    applyFilters();
+                })
+                .catch(error => {
+                    console.error('加载日志失败:', error);
+                    showError('加载日志失败: ' + error.message);
+                });
+        }
+
+        // 更新日志统计
+        function updateLogStats() {
+            logStats = { ERROR: 0, WARN: 0, INFO: 0, DEBUG: 0, TRACE: 0, total: allLogs.length };
+            
+            allLogs.forEach(log => {
+                if (logStats.hasOwnProperty(log.level)) {
+                    logStats[log.level]++;
+                }
+            });
+
+            document.getElementById('error-count').textContent = logStats.ERROR;
+            document.getElementById('warn-count').textContent = logStats.WARN;
+            document.getElementById('info-count').textContent = logStats.INFO;
+            document.getElementById('total-count').textContent = logStats.total;
+        }
+
+        // 应用过滤器
+        function applyFilters() {
+            const levelFilter = document.getElementById('log-level-filter').value;
+            const loggerFilter = document.getElementById('logger-filter').value.toLowerCase();
+            const searchFilter = document.getElementById('search-filter').value.toLowerCase();
+            const startTime = document.getElementById('start-time').value;
+            const endTime = document.getElementById('end-time').value;
+
+            filteredLogs = allLogs.filter(log => {
+                // 级别过滤
+                if (levelFilter && log.level !== levelFilter) {
+                    return false;
+                }
+
+                // Logger过滤
+                if (loggerFilter && !log.logger.toLowerCase().includes(loggerFilter)) {
+                    return false;
+                }
+
+                // 搜索过滤
+                if (searchFilter && !log.message.toLowerCase().includes(searchFilter)) {
+                    return false;
+                }
+
+                // 时间过滤
+                if (startTime && new Date(log.timestamp) < new Date(startTime)) {
+                    return false;
+                }
+                if (endTime && new Date(log.timestamp) > new Date(endTime)) {
+                    return false;
+                }
+
+                return true;
+            });
+
+            displayLogs();
+            updateFilteredCount();
+        }
+
+        // 显示日志
+        function displayLogs() {
+            const container = document.getElementById('log-container');
+            const searchTerm = document.getElementById('search-filter').value.toLowerCase();
+            
+            if (filteredLogs.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center text-muted py-5">
+                        <i class="bi bi-search fs-1 mb-3"></i>
+                        <p>没有找到匹配的日志记录</p>
+                    </div>
+                `;
+                return;
+            }
+
+            let html = '';
+            filteredLogs.forEach((log, index) => {
+                const logLine = formatLogLine(log, searchTerm);
+                html += `<div class="log-line log-level-${log.level}" data-index="${index}">${logLine}</div>`;
+            });
+
+            container.innerHTML = html;
+            
+            // 如果启用了自动滚动，滚动到底部
+            if (document.getElementById('auto-scroll').checked) {
+                scrollToBottom();
+            }
+        }
+
+        // 格式化日志行
+        function formatLogLine(log, searchTerm = '') {
+            const timestamp = new Date(log.timestamp).toLocaleString('zh-CN');
+            let message = log.message;
+            
+            // 高亮搜索关键词
+            if (searchTerm) {
+                const regex = new RegExp(`(${escapeRegExp(searchTerm)})`, 'gi');
+                message = message.replace(regex, '<span class="log-search-highlight">$1</span>');
+            }
+            
+            return `<span class="log-timestamp">${timestamp}</span> <span class="badge level-badge bg-${getLevelColor(log.level)}">${log.level}</span> <span class="log-logger">[${log.logger}]</span> <span class="log-message">${message}</span>`;
+        }
+
+        // 获取日志级别颜色
+        function getLevelColor(level) {
+            switch (level) {
+                case 'ERROR': return 'danger';
+                case 'WARN': return 'warning';
+                case 'INFO': return 'info';
+                case 'DEBUG': return 'success';
+                case 'TRACE': return 'secondary';
+                default: return 'secondary';
+            }
+        }
+
+        // 转义正则表达式特殊字符
+        function escapeRegExp(string) {
+            return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        }
+
+        // 更新过滤后的数量
+        function updateFilteredCount() {
+            document.getElementById('filtered-count').textContent = `显示: ${filteredLogs.length} 条`;
+        }
+
+        // 重置过滤器
+        function resetFilters() {
+            document.getElementById('log-level-filter').value = '';
+            document.getElementById('logger-filter').value = '';
+            document.getElementById('search-filter').value = '';
+            document.getElementById('start-time').value = '';
+            document.getElementById('end-time').value = '';
+            applyFilters();
+        }
+
+        // 切换实时模式
+        function toggleRealTime() {
+            const icon = document.getElementById('realtime-icon');
+            const text = document.getElementById('realtime-text');
+            const indicator = document.getElementById('auto-scroll-indicator');
+            
+            if (isRealTimeMode) {
+                // 停止实时模式
+                clearInterval(realTimeInterval);
+                isRealTimeMode = false;
+                icon.className = 'bi bi-play-circle';
+                text.textContent = '开始实时';
+                indicator.style.display = 'none';
+            } else {
+                // 开始实时模式
+                isRealTimeMode = true;
+                icon.className = 'bi bi-stop-circle';
+                text.textContent = '停止实时';
+                indicator.style.display = 'block';
+                
+                // 每2秒刷新一次
+                realTimeInterval = setInterval(() => {
+                    loadLogs();
+                }, 2000);
+            }
+        }
+
+        // 设置自动滚动
+        function setupAutoScroll() {
+            const container = document.getElementById('log-container');
+            const autoScrollCheckbox = document.getElementById('auto-scroll');
+            
+            container.addEventListener('scroll', () => {
+                const isAtBottom = container.scrollTop + container.clientHeight >= container.scrollHeight - 10;
+                if (!isAtBottom && autoScrollCheckbox.checked) {
+                    autoScrollCheckbox.checked = false;
+                }
+            });
+        }
+
+        // 滚动到顶部
+        function scrollToTop() {
+            const container = document.getElementById('log-container');
+            container.scrollTop = 0;
+        }
+
+        // 滚动到底部
+        function scrollToBottom() {
+            const container = document.getElementById('log-container');
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // 刷新日志
+        function refreshLogs() {
+            loadLogs();
+        }
+
+        // 清空显示
+        function clearLogs() {
+            if (confirm('确定要清空当前显示的日志吗？这不会删除实际的日志文件。')) {
+                allLogs = [];
+                filteredLogs = [];
+                updateLogStats();
+                displayLogs();
+                updateFilteredCount();
+            }
+        }
+
+        // 导出日志
+        function exportLogs() {
+            if (filteredLogs.length === 0) {
+                alert('没有日志可以导出');
+                return;
+            }
+            
+            let logText = '';
+            filteredLogs.forEach(log => {
+                const timestamp = new Date(log.timestamp).toLocaleString('zh-CN');
+                logText += `${timestamp} [${log.level}] [${log.logger}] ${log.message}\n`;
+            });
+            
+            const blob = new Blob([logText], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rpc-provider-logs-${new Date().toISOString().split('T')[0]}.log`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            URL.revokeObjectURL(url);
+        }
+
+        // 显示错误信息
+        function showError(message) {
+            const container = document.getElementById('log-container');
+            container.innerHTML = `
+                <div class="text-center text-danger py-5">
+                    <i class="bi bi-exclamation-triangle fs-1 mb-3"></i>
+                    <p>${message}</p>
+                    <button class="btn btn-outline-primary" onclick="loadLogs()">
+                        <i class="bi bi-arrow-clockwise"></i> 重试
+                    </button>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>

@@ -33,8 +33,8 @@
         <kryo.version>5.2.0</kryo.version>
         <curator.version>5.1.0</curator.version>
         <zookeeper.version>3.7.0</zookeeper.version>
-        <slf4j.version>1.7.32</slf4j.version>
-        <logback.version>1.2.3</logback.version>
+        <slf4j.version>2.0.9</slf4j.version>
+        <logback.version>1.4.14</logback.version>
         <junit.version>4.13.2</junit.version>
         <junit5.version>5.8.2</junit5.version>
         <lombok.version>1.18.38</lombok.version>

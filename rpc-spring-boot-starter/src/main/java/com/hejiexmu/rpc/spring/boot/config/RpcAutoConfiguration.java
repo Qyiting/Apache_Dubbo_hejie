@@ -9,6 +9,7 @@ import com.rpc.serialization.factory.SerializerFactory;
 import com.hejiexmu.rpc.spring.boot.properties.RpcProperties;
 import com.hejiexmu.rpc.spring.boot.processor.RpcReferenceProcessor;
 import com.hejiexmu.rpc.spring.boot.processor.RpcServiceProcessor;
+import com.hejiexmu.rpc.spring.boot.config.RpcServerAutoStarter;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -27,8 +28,12 @@ import org.springframework.context.annotation.Import;
 @Configuration
 @EnableConfigurationProperties(RpcProperties.class)
 @ConditionalOnProperty(prefix = "rpc", name = "enabled", havingValue = "true", matchIfMissing = true)
-@Import(RpcCompatibilityConfiguration.class)
+@Import({RpcCompatibilityConfiguration.class})
 public class RpcAutoConfiguration {
+    
+    public RpcAutoConfiguration() {
+        log.info("RpcAutoConfiguration 正在初始化...");
+    }
     
     /**
      * 配置服务注册中心
@@ -121,5 +126,18 @@ public class RpcAutoConfiguration {
     public RpcReferenceProcessor rpcReferenceProcessor(RpcClient rpcClient, RpcProperties rpcProperties) {
         log.info("初始化RPC引用处理器");
         return new RpcReferenceProcessor(rpcClient, rpcProperties);
+    }
+    
+    /**
+     * 配置RPC服务器自动启动器
+     */
+    @Bean
+    @ConditionalOnMissingBean(RpcServerAutoStarter.class)
+    @ConditionalOnProperty(prefix = "rpc.provider", name = "enabled", havingValue = "true")
+    @DependsOn("rpcServer")
+    public RpcServerAutoStarter rpcServerAutoStarter(RpcServer rpcServer) {
+        log.info("初始化RPC服务器自动启动器");
+        log.info("RpcServer实例: {}", rpcServer != null ? "存在" : "不存在");
+        return new RpcServerAutoStarter(rpcServer);
     }
 }

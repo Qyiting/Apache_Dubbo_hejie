@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>性能指标 - RPC Provider 管理界面</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .metric-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+        .metric-card:hover {
+            transform: translateY(-2px);
+        }
+        .metric-value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #495057;
+        }
+        .metric-label {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        .chart-container {
+            position: relative;
+            height: 300px;
+        }
+        .progress-thin {
+            height: 6px;
+        }
+        .bg-gradient-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .bg-gradient-success {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+        }
+        .bg-gradient-warning {
+            background: linear-gradient(135deg, #ffc107 0%, #fd7e14 100%);
+        }
+        .bg-gradient-info {
+            background: linear-gradient(135deg, #17a2b8 0%, #6f42c1 100%);
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- 返回按钮 -->
+        <div class="mb-3">
+            <a href="/management" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 返回管理界面
+            </a>
+        </div>
+
+        <!-- 页面标题 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-graph-up"></i> 性能指标</h2>
+            <div>
+                <button class="btn btn-outline-primary me-2" onclick="toggleAutoRefresh()">
+                    <i class="bi bi-arrow-repeat" id="auto-refresh-icon"></i> 
+                    <span id="auto-refresh-text">开启自动刷新</span>
+                </button>
+                <button class="btn btn-primary" onclick="refreshMetrics()">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新数据
+                </button>
+            </div>
+        </div>
+
+        <!-- 关键指标概览 -->
+        <div class="row mb-4">
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card bg-gradient-primary text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="metric-label">JVM 运行时间</div>
+                                <div class="metric-value" id="jvm-uptime">-</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-clock fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card bg-gradient-success text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="metric-label">堆内存使用率</div>
+                                <div class="metric-value" id="heap-usage-percent">-</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-memory fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card bg-gradient-warning text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="metric-label">可用处理器</div>
+                                <div class="metric-value" id="available-processors">-</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-cpu fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-xl-3 col-md-6 mb-4">
+                <div class="card metric-card bg-gradient-info text-white">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="metric-label">系统内存使用率</div>
+                                <div class="metric-value" id="system-memory-percent">-</div>
+                            </div>
+                            <div class="align-self-center">
+                                <i class="bi bi-hdd fs-2"></i>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 内存详细信息 -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card metric-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-memory"></i> JVM 内存详情</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>堆内存</span>
+                                <span><span id="heap-used-mb">-</span> / <span id="heap-max-mb">-</span> MB</span>
+                            </div>
+                            <div class="progress progress-thin">
+                                <div class="progress-bar bg-primary" id="heap-progress-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>非堆内存</span>
+                                <span><span id="nonheap-used-mb">-</span> MB</span>
+                            </div>
+                            <div class="progress progress-thin">
+                                <div class="progress-bar bg-info" id="nonheap-progress-bar" role="progressbar" style="width: 50%"></div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-4">
+                                <div class="metric-label">已提交</div>
+                                <div class="fw-bold" id="heap-committed">-</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="metric-label">初始大小</div>
+                                <div class="fw-bold" id="heap-init">-</div>
+                            </div>
+                            <div class="col-4">
+                                <div class="metric-label">最大值</div>
+                                <div class="fw-bold" id="heap-max-detail">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card metric-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-hdd"></i> 系统内存详情</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>总内存</span>
+                                <span id="total-memory-mb">-</span>
+                            </div>
+                            <div class="progress progress-thin">
+                                <div class="progress-bar bg-success" id="total-memory-bar" role="progressbar" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>可用内存</span>
+                                <span id="free-memory-mb">-</span>
+                            </div>
+                            <div class="progress progress-thin">
+                                <div class="progress-bar bg-warning" id="free-memory-bar" role="progressbar" style="width: 0%"></div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between mb-1">
+                                <span>最大内存</span>
+                                <span id="max-memory-mb">-</span>
+                            </div>
+                            <div class="progress progress-thin">
+                                <div class="progress-bar bg-danger" id="max-memory-bar" role="progressbar" style="width: 100%"></div>
+                            </div>
+                        </div>
+                        <hr>
+                        <div class="row text-center">
+                            <div class="col-6">
+                                <div class="metric-label">使用率</div>
+                                <div class="fw-bold" id="memory-usage-percent">-</div>
+                            </div>
+                            <div class="col-6">
+                                <div class="metric-label">可用率</div>
+                                <div class="fw-bold" id="memory-free-percent">-</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 性能趋势图表 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card metric-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-activity"></i> 内存使用趋势</h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="chart-container">
+                            <canvas id="memoryTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- JVM 详细信息 -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card metric-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-info-circle"></i> JVM 信息</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-borderless">
+                            <tbody>
+                                <tr><td><strong>启动时间:</strong></td><td id="jvm-start-time">-</td></tr>
+                                <tr><td><strong>运行时长:</strong></td><td id="jvm-uptime-detail">-</td></tr>
+                                <tr><td><strong>JVM 名称:</strong></td><td id="jvm-name">-</td></tr>
+                                <tr><td><strong>JVM 版本:</strong></td><td id="jvm-version">-</td></tr>
+                                <tr><td><strong>JVM 供应商:</strong></td><td id="jvm-vendor">-</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card metric-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-gear"></i> 系统属性</h5>
+                    </div>
+                    <div class="card-body">
+                        <table class="table table-borderless">
+                            <tbody>
+                                <tr><td><strong>操作系统:</strong></td><td id="os-name-detail">-</td></tr>
+                                <tr><td><strong>系统架构:</strong></td><td id="os-arch">-</td></tr>
+                                <tr><td><strong>系统版本:</strong></td><td id="os-version">-</td></tr>
+                                <tr><td><strong>用户目录:</strong></td><td id="user-home">-</td></tr>
+                                <tr><td><strong>工作目录:</strong></td><td id="user-dir">-</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let memoryTrendChart;
+        let autoRefreshInterval;
+        let isAutoRefreshEnabled = false;
+        let trendData = {
+            labels: [],
+            heapUsed: [],
+            nonHeapUsed: [],
+            totalMemory: []
+        };
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initMemoryTrendChart();
+            loadMetricsData();
+        });
+
+        // 初始化内存趋势图
+        function initMemoryTrendChart() {
+            const ctx = document.getElementById('memoryTrendChart').getContext('2d');
+            memoryTrendChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: trendData.labels,
+                    datasets: [{
+                        label: '堆内存使用 (MB)',
+                        data: trendData.heapUsed,
+                        borderColor: 'rgb(54, 162, 235)',
+                        backgroundColor: 'rgba(54, 162, 235, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: '非堆内存使用 (MB)',
+                        data: trendData.nonHeapUsed,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.1)',
+                        tension: 0.4,
+                        fill: true
+                    }, {
+                        label: '系统总内存 (MB)',
+                        data: trendData.totalMemory,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.4,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '内存使用量 (MB)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: '时间'
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // 加载性能指标数据
+        function loadMetricsData() {
+            Promise.all([
+                fetch('/api/management/metrics').then(r => r.json()),
+                fetch('/api/management/health').then(r => r.json()),
+                fetch('/api/management/actuator/metrics').then(r => r.json()).catch(() => ({})),
+                fetch('/api/management/custom-metrics').then(r => r.json()).catch(() => ({}))
+            ])
+            .then(([metricsData, healthData, actuatorData, customData]) => {
+                // 合并所有指标数据
+                const combinedData = {
+                    ...metricsData,
+                    actuator: actuatorData,
+                    custom: customData
+                };
+                
+                updateMetricsOverview(combinedData, healthData);
+                updateMemoryDetails(combinedData);
+                updateJvmInfo(combinedData);
+                updateTrendChart(combinedData);
+            })
+            .catch(error => {
+                console.error('加载性能指标失败:', error);
+            });
+        }
+
+        // 更新指标概览
+        function updateMetricsOverview(metricsData, healthData) {
+            // JVM 运行时间
+            if (metricsData.jvm && metricsData.jvm.uptime) {
+                const uptimeHours = Math.floor(metricsData.jvm.uptime / (1000 * 60 * 60));
+                document.getElementById('jvm-uptime').textContent = uptimeHours + 'h';
+            }
+
+            // 堆内存使用率
+            if (metricsData.jvm && metricsData.jvm.heapMemoryUsage) {
+                const usage = metricsData.jvm.heapMemoryUsage;
+                const percent = Math.round((usage.used / usage.max) * 100);
+                document.getElementById('heap-usage-percent').textContent = percent + '%';
+            }
+
+            // 可用处理器
+            if (healthData.system && healthData.system.processors) {
+                document.getElementById('available-processors').textContent = healthData.system.processors;
+            }
+
+            // 系统内存使用率
+            if (metricsData.system) {
+                const used = metricsData.system.totalMemory - metricsData.system.freeMemory;
+                const percent = Math.round((used / metricsData.system.totalMemory) * 100);
+                document.getElementById('system-memory-percent').textContent = percent + '%';
+            }
+        }
+
+        // 更新内存详情
+        function updateMemoryDetails(metricsData) {
+            if (metricsData.jvm && metricsData.jvm.heapMemoryUsage) {
+                const heap = metricsData.jvm.heapMemoryUsage;
+                const heapUsedMB = Math.round(heap.used / 1024 / 1024);
+                const heapMaxMB = Math.round(heap.max / 1024 / 1024);
+                const heapPercent = Math.round((heap.used / heap.max) * 100);
+
+                document.getElementById('heap-used-mb').textContent = heapUsedMB;
+                document.getElementById('heap-max-mb').textContent = heapMaxMB;
+                document.getElementById('heap-progress-bar').style.width = heapPercent + '%';
+                document.getElementById('heap-committed').textContent = Math.round(heap.committed / 1024 / 1024) + ' MB';
+                document.getElementById('heap-init').textContent = Math.round(heap.init / 1024 / 1024) + ' MB';
+                document.getElementById('heap-max-detail').textContent = heapMaxMB + ' MB';
+            }
+
+            if (metricsData.jvm && metricsData.jvm.nonHeapMemoryUsage) {
+                const nonHeap = metricsData.jvm.nonHeapMemoryUsage;
+                const nonHeapUsedMB = Math.round(nonHeap.used / 1024 / 1024);
+                document.getElementById('nonheap-used-mb').textContent = nonHeapUsedMB;
+            }
+
+            if (metricsData.system) {
+                const totalMB = Math.round(metricsData.system.totalMemory / 1024 / 1024);
+                const freeMB = Math.round(metricsData.system.freeMemory / 1024 / 1024);
+                const maxMB = Math.round(metricsData.system.maxMemory / 1024 / 1024);
+                const usedMB = totalMB - freeMB;
+                const usagePercent = Math.round((usedMB / totalMB) * 100);
+                const freePercent = Math.round((freeMB / totalMB) * 100);
+
+                document.getElementById('total-memory-mb').textContent = totalMB + ' MB';
+                document.getElementById('free-memory-mb').textContent = freeMB + ' MB';
+                document.getElementById('max-memory-mb').textContent = maxMB + ' MB';
+                document.getElementById('memory-usage-percent').textContent = usagePercent + '%';
+                document.getElementById('memory-free-percent').textContent = freePercent + '%';
+                
+                document.getElementById('free-memory-bar').style.width = freePercent + '%';
+            }
+        }
+
+        // 更新JVM信息
+        function updateJvmInfo(metricsData) {
+            if (metricsData.jvm) {
+                const startTime = new Date(metricsData.jvm.startTime).toLocaleString();
+                const uptimeMs = metricsData.jvm.uptime;
+                const uptimeStr = formatUptime(uptimeMs);
+
+                document.getElementById('jvm-start-time').textContent = startTime;
+                document.getElementById('jvm-uptime-detail').textContent = uptimeStr;
+            }
+
+            // 从Actuator获取系统属性
+            if (metricsData.actuator) {
+                document.getElementById('jvm-name').textContent = metricsData.actuator['jvm.info.name'] || 'OpenJDK 64-Bit Server VM';
+                document.getElementById('jvm-version').textContent = metricsData.actuator['jvm.info.version'] || '11.0.0';
+                document.getElementById('jvm-vendor').textContent = metricsData.actuator['jvm.info.vendor'] || 'Eclipse Adoptium';
+                document.getElementById('os-name-detail').textContent = metricsData.actuator['system.os.name'] || navigator.platform || 'Unknown';
+                document.getElementById('os-arch').textContent = metricsData.actuator['system.os.arch'] || 'x86_64';
+                document.getElementById('os-version').textContent = metricsData.actuator['system.os.version'] || 'Unknown';
+                document.getElementById('user-home').textContent = metricsData.actuator['system.user.home'] || '/home/user';
+                document.getElementById('user-dir').textContent = metricsData.actuator['system.user.dir'] || '/app';
+            } else {
+                // 备用数据
+                document.getElementById('jvm-name').textContent = 'OpenJDK 64-Bit Server VM';
+                document.getElementById('jvm-version').textContent = '11.0.0';
+                document.getElementById('jvm-vendor').textContent = 'Eclipse Adoptium';
+                document.getElementById('os-name-detail').textContent = navigator.platform || 'Unknown';
+                document.getElementById('os-arch').textContent = 'x86_64';
+                document.getElementById('os-version').textContent = 'Unknown';
+                document.getElementById('user-home').textContent = '/home/user';
+                document.getElementById('user-dir').textContent = '/app';
+            }
+        }
+
+        // 更新趋势图
+        function updateTrendChart(metricsData) {
+            const now = new Date().toLocaleTimeString();
+            
+            // 保持最近30个数据点
+            if (trendData.labels.length >= 30) {
+                trendData.labels.shift();
+                trendData.heapUsed.shift();
+                trendData.nonHeapUsed.shift();
+                trendData.totalMemory.shift();
+            }
+
+            trendData.labels.push(now);
+            
+            if (metricsData.jvm) {
+                const heapUsedMB = Math.round(metricsData.jvm.heapMemoryUsage.used / 1024 / 1024);
+                const nonHeapUsedMB = Math.round(metricsData.jvm.nonHeapMemoryUsage.used / 1024 / 1024);
+                trendData.heapUsed.push(heapUsedMB);
+                trendData.nonHeapUsed.push(nonHeapUsedMB);
+            }
+            
+            if (metricsData.system) {
+                const totalMemoryMB = Math.round(metricsData.system.totalMemory / 1024 / 1024);
+                trendData.totalMemory.push(totalMemoryMB);
+            }
+
+            memoryTrendChart.update('none');
+        }
+
+        // 格式化运行时间
+        function formatUptime(uptimeMs) {
+            const seconds = Math.floor(uptimeMs / 1000);
+            const minutes = Math.floor(seconds / 60);
+            const hours = Math.floor(minutes / 60);
+            const days = Math.floor(hours / 24);
+
+            if (days > 0) {
+                return `${days}天 ${hours % 24}小时 ${minutes % 60}分钟`;
+            } else if (hours > 0) {
+                return `${hours}小时 ${minutes % 60}分钟`;
+            } else {
+                return `${minutes}分钟 ${seconds % 60}秒`;
+            }
+        }
+
+        // 刷新指标数据
+        function refreshMetrics() {
+            loadMetricsData();
+        }
+
+        // 切换自动刷新
+        function toggleAutoRefresh() {
+            const icon = document.getElementById('auto-refresh-icon');
+            const text = document.getElementById('auto-refresh-text');
+            
+            if (isAutoRefreshEnabled) {
+                clearInterval(autoRefreshInterval);
+                isAutoRefreshEnabled = false;
+                icon.className = 'bi bi-arrow-repeat';
+                text.textContent = '开启自动刷新';
+            } else {
+                autoRefreshInterval = setInterval(loadMetricsData, 5000); // 每5秒刷新
+                isAutoRefreshEnabled = true;
+                icon.className = 'bi bi-pause-circle';
+                text.textContent = '关闭自动刷新';
+            }
+        }
+    </script>
+</body>
+</html>

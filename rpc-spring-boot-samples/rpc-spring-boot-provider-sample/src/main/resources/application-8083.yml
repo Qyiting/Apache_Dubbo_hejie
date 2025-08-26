@@ -1,14 +1,12 @@
-# RPC Provider Sample Configuration
+# RPC Provider Sample Configuration - Instance 3
 server:
-  port: 8081
+  port: 8083
   servlet:
     context-path: /
 
 spring:
   application:
     name: rpc-provider-sample
-  profiles:
-    active: local
 
 # RPC Framework Configuration
 rpc:
@@ -24,9 +22,8 @@ rpc:
   
   # Provider Configuration
   provider:
-    enabled: true
     host: localhost
-    port: 9081
+    port: 9083
     serializer: 1
     worker-threads: 10
   
@@ -36,43 +33,43 @@ rpc:
     retry-count: 3
     connection-pool-size: 10
 
-# Spring Boot Actuator Configuration
-management:
-  endpoints:
-    web:
-      exposure:
-        include: "*"
-      base-path: /actuator
-  endpoint:
-    health:
-      show-details: always
-    metrics:
-      enabled: true
-
 # Logging Configuration
 logging:
   level:
     root: INFO
-    org.springframework.boot.autoconfigure: DEBUG
     com.hejiexmu.rpc: DEBUG
     com.rpc: DEBUG
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   file:
-    name: logs/rpc-provider.log
+    name: logs/rpc-provider-8083.log
   logback:
     rollingpolicy:
       max-file-size: 100MB
       max-history: 30
 
+# Management Endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always
+  info:
+    env:
+      enabled: true
+
 # Application Info
 info:
   app:
-    name: RPC Provider Sample
-    description: Spring Boot RPC Framework Provider Example
+    name: RPC Provider Sample - Instance 3
+    description: Spring Boot RPC Framework Provider Example - Port 8083
     version: 1.0.0
     author: hejiexmu
+    instance: 3
   java:
     version: ${java.version}
   spring:

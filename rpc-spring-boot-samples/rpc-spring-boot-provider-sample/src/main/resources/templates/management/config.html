@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>配置管理 - RPC Provider 管理界面</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .config-card {
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+        .config-card:hover {
+            transform: translateY(-2px);
+        }
+        .config-section {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        .config-item {
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+            border-left: 4px solid #007bff;
+        }
+        .config-value {
+            font-family: 'Courier New', monospace;
+            background-color: #e9ecef;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .editable-config {
+            cursor: pointer;
+            transition: background-color 0.2s ease;
+        }
+        .editable-config:hover {
+            background-color: #fff3cd;
+        }
+        .profile-badge {
+            font-size: 0.8rem;
+            padding: 0.25rem 0.5rem;
+        }
+        .json-viewer {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid py-4">
+        <!-- 返回按钮 -->
+        <div class="mb-3">
+            <a href="/management" class="btn btn-outline-secondary">
+                <i class="bi bi-arrow-left"></i> 返回管理界面
+            </a>
+        </div>
+
+        <!-- 页面标题 -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2><i class="bi bi-gear"></i> 配置管理</h2>
+            <div>
+                <button class="btn btn-outline-info me-2" onclick="exportConfig()">
+                    <i class="bi bi-download"></i> 导出配置
+                </button>
+                <button class="btn btn-primary" onclick="refreshConfig()">
+                    <i class="bi bi-arrow-clockwise"></i> 刷新配置
+                </button>
+            </div>
+        </div>
+
+        <!-- 配置概览 -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card config-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-hdd-network fs-1 text-primary mb-2"></i>
+                        <h5>RPC 配置</h5>
+                        <p class="text-muted">RPC服务相关配置</p>
+                        <span class="badge bg-primary" id="rpc-config-count">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card config-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-globe fs-1 text-success mb-2"></i>
+                        <h5>Web 配置</h5>
+                        <p class="text-muted">Web服务相关配置</p>
+                        <span class="badge bg-success" id="web-config-count">-</span>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card config-card">
+                    <div class="card-body text-center">
+                        <i class="bi bi-app fs-1 text-info mb-2"></i>
+                        <h5>应用配置</h5>
+                        <p class="text-muted">应用程序相关配置</p>
+                        <span class="badge bg-info" id="app-config-count">-</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 活跃配置文件 -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="card config-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-file-earmark-text"></i> 活跃配置文件</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="active-profiles-container">
+                            <!-- 动态加载活跃配置文件 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 配置详情 -->
+        <div class="row">
+            <!-- RPC 配置 -->
+            <div class="col-md-6 mb-4">
+                <div class="card config-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-hdd-network"></i> RPC 服务配置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="rpc-config-content">
+                            <!-- 动态加载RPC配置 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Web 配置 -->
+            <div class="col-md-6 mb-4">
+                <div class="card config-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-globe"></i> Web 服务配置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="web-config-content">
+                            <!-- 动态加载Web配置 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 应用配置 -->
+            <div class="col-md-12 mb-4">
+                <div class="card config-card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0"><i class="bi bi-app"></i> 应用程序配置</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="app-config-content">
+                            <!-- 动态加载应用配置 -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 完整配置JSON -->
+        <div class="row">
+            <div class="col-12">
+                <div class="card config-card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0"><i class="bi bi-code-square"></i> 完整配置 (JSON)</h5>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="copyConfigJson()">
+                            <i class="bi bi-clipboard"></i> 复制
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="json-viewer" id="full-config-json">
+                            <!-- 动态加载完整配置JSON -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 配置编辑模态框 -->
+    <div class="modal fade" id="configEditModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑配置</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">配置键</label>
+                        <input type="text" class="form-control" id="config-key" readonly>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">配置值</label>
+                        <input type="text" class="form-control" id="config-value">
+                    </div>
+                    <div class="alert alert-warning">
+                        <i class="bi bi-exclamation-triangle"></i>
+                        注意：配置修改仅在当前会话中生效，重启后将恢复原始配置。
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="button" class="btn btn-primary" onclick="saveConfig()">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let configData = {};
+        let configEditModal;
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            configEditModal = new bootstrap.Modal(document.getElementById('configEditModal'));
+            loadConfigData();
+        });
+
+        // 加载配置数据
+        function loadConfigData() {
+            fetch('/api/management/config')
+                .then(response => response.json())
+                .then(data => {
+                    configData = data;
+                    updateConfigOverview(data);
+                    updateActiveProfiles(data);
+                    updateConfigSections(data);
+                    updateFullConfigJson(data);
+                })
+                .catch(error => {
+                    console.error('加载配置数据失败:', error);
+                });
+        }
+
+        // 更新配置概览
+        function updateConfigOverview(data) {
+            const rpcCount = Object.keys(data.rpc || {}).length;
+            const webCount = Object.keys(data.web || {}).length;
+            const appCount = Object.keys(data.application || {}).length;
+
+            document.getElementById('rpc-config-count').textContent = rpcCount + ' 项';
+            document.getElementById('web-config-count').textContent = webCount + ' 项';
+            document.getElementById('app-config-count').textContent = appCount + ' 项';
+        }
+
+        // 更新活跃配置文件
+        function updateActiveProfiles(data) {
+            const container = document.getElementById('active-profiles-container');
+            const profiles = data.application?.profiles || ['default'];
+            
+            let html = '<div class="d-flex flex-wrap gap-2">';
+            profiles.forEach(profile => {
+                const badgeClass = profile === 'default' ? 'bg-primary' : 'bg-success';
+                html += `<span class="badge ${badgeClass} profile-badge">${profile}</span>`;
+            });
+            html += '</div>';
+            
+            if (profiles.length === 0) {
+                html = '<span class="badge bg-primary profile-badge">default</span>';
+            }
+            
+            container.innerHTML = html;
+        }
+
+        // 更新配置区域
+        function updateConfigSections(data) {
+            updateRpcConfig(data.rpc);
+            updateWebConfig(data.web);
+            updateAppConfig(data.application);
+        }
+
+        // 更新RPC配置
+        function updateRpcConfig(rpcConfig) {
+            const container = document.getElementById('rpc-config-content');
+            if (!rpcConfig) {
+                container.innerHTML = '<p class="text-muted">暂无RPC配置</p>';
+                return;
+            }
+
+            let html = '';
+            Object.entries(rpcConfig).forEach(([key, value]) => {
+                html += createConfigItem('rpc.' + key, value, true);
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // 更新Web配置
+        function updateWebConfig(webConfig) {
+            const container = document.getElementById('web-config-content');
+            if (!webConfig) {
+                container.innerHTML = '<p class="text-muted">暂无Web配置</p>';
+                return;
+            }
+
+            let html = '';
+            Object.entries(webConfig).forEach(([key, value]) => {
+                html += createConfigItem('server.' + key, value, key === 'port');
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // 更新应用配置
+        function updateAppConfig(appConfig) {
+            const container = document.getElementById('app-config-content');
+            if (!appConfig) {
+                container.innerHTML = '<p class="text-muted">暂无应用配置</p>';
+                return;
+            }
+
+            let html = '';
+            Object.entries(appConfig).forEach(([key, value]) => {
+                if (key !== 'profiles') { // profiles已在上面显示
+                    html += createConfigItem('spring.application.' + key, value, false);
+                }
+            });
+            
+            container.innerHTML = html;
+        }
+
+        // 创建配置项HTML
+        function createConfigItem(key, value, editable = false) {
+            const displayValue = Array.isArray(value) ? value.join(', ') : String(value);
+            const editableClass = editable ? 'editable-config' : '';
+            const editableAttr = editable ? `onclick="editConfig('${key}', '${value}')"` : '';
+            const editIcon = editable ? '<i class="bi bi-pencil-square text-primary ms-2"></i>' : '';
+            
+            return `
+                <div class="config-item ${editableClass}" ${editableAttr}>
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>${key}</strong>
+                            <div class="config-value mt-1">${displayValue}</div>
+                        </div>
+                        <div>
+                            ${editIcon}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // 更新完整配置JSON
+        function updateFullConfigJson(data) {
+            const container = document.getElementById('full-config-json');
+            const jsonStr = JSON.stringify(data, null, 2);
+            container.textContent = jsonStr;
+        }
+
+        // 编辑配置
+        function editConfig(key, value) {
+            document.getElementById('config-key').value = key;
+            document.getElementById('config-value').value = value;
+            configEditModal.show();
+        }
+
+        // 保存配置
+        function saveConfig() {
+            const key = document.getElementById('config-key').value;
+            const value = document.getElementById('config-value').value;
+            
+            // 这里应该调用后端API保存配置
+            // 由于这是演示，我们只是显示一个提示
+            alert(`配置已保存：${key} = ${value}\n\n注意：这只是演示功能，实际保存需要后端API支持。`);
+            
+            configEditModal.hide();
+            
+            // 刷新配置数据
+            setTimeout(() => {
+                loadConfigData();
+            }, 500);
+        }
+
+        // 刷新配置
+        function refreshConfig() {
+            loadConfigData();
+        }
+
+        // 导出配置
+        function exportConfig() {
+            const jsonStr = JSON.stringify(configData, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `rpc-provider-config-${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            URL.revokeObjectURL(url);
+        }
+
+        // 复制配置JSON
+        function copyConfigJson() {
+            const jsonStr = document.getElementById('full-config-json').textContent;
+            
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(jsonStr).then(() => {
+                    showToast('配置JSON已复制到剪贴板');
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    fallbackCopyTextToClipboard(jsonStr);
+                });
+            } else {
+                fallbackCopyTextToClipboard(jsonStr);
+            }
+        }
+
+        // 备用复制方法
+        function fallbackCopyTextToClipboard(text) {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.top = '0';
+            textArea.style.left = '0';
+            textArea.style.position = 'fixed';
+            
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            
+            try {
+                const successful = document.execCommand('copy');
+                if (successful) {
+                    showToast('配置JSON已复制到剪贴板');
+                } else {
+                    showToast('复制失败，请手动复制', 'error');
+                }
+            } catch (err) {
+                console.error('复制失败:', err);
+                showToast('复制失败，请手动复制', 'error');
+            }
+            
+            document.body.removeChild(textArea);
+        }
+
+        // 显示提示消息
+        function showToast(message, type = 'success') {
+            const toastContainer = document.getElementById('toast-container') || createToastContainer();
+            const toastId = 'toast-' + Date.now();
+            const bgClass = type === 'success' ? 'bg-success' : 'bg-danger';
+            
+            const toastHtml = `
+                <div id="${toastId}" class="toast align-items-center text-white ${bgClass} border-0" role="alert">
+                    <div class="d-flex">
+                        <div class="toast-body">${message}</div>
+                        <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                    </div>
+                </div>
+            `;
+            
+            toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+            
+            const toastElement = document.getElementById(toastId);
+            const toast = new bootstrap.Toast(toastElement);
+            toast.show();
+            
+            // 自动移除
+            toastElement.addEventListener('hidden.bs.toast', () => {
+                toastElement.remove();
+            });
+        }
+
+        // 创建Toast容器
+        function createToastContainer() {
+            const container = document.createElement('div');
+            container.id = 'toast-container';
+            container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+            document.body.appendChild(container);
+            return container;
+        }
+    </script>
+</body>
+</html>
