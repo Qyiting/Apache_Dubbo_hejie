@@ -11,14 +11,16 @@ import com.rpc.server.provider.ServiceProvider;
 import com.rpc.core.metric.MetricsCollector;
 import com.rpc.core.serviceinfo.ServiceInfo;
 import com.rpc.registry.ServiceRegistry;
-import com.rpc.registry.zookeeper.ZookeeperServiceRegistry;
 import com.hejiexmu.rpc.samples.provider.service.RemoteInstanceService;
 
+import java.io.BufferedReader;
+import java.io.File;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.RuntimeMXBean;
 import java.net.InetAddress;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
@@ -456,7 +458,7 @@ public class ManagementController {
         
         for (String logPath : logPaths) {
             try {
-                java.io.File logFile = new java.io.File(logPath);
+                File logFile = new File(logPath);
                 if (logFile.exists() && logFile.canRead()) {
                     logs = parseLogFile(logFile, lines, level, instanceId);
                     if (!logs.isEmpty()) {
@@ -479,10 +481,10 @@ public class ManagementController {
     /**
      * 解析日志文件
      */
-    private List<Map<String, Object>> parseLogFile(java.io.File logFile, int lines, String level, String instanceId) {
+    private List<Map<String, Object>> parseLogFile(File logFile, int lines, String level, String instanceId) {
         List<Map<String, Object>> logs = new ArrayList<>();
         
-        try (java.io.BufferedReader reader = java.nio.file.Files.newBufferedReader(
+        try (BufferedReader reader = Files.newBufferedReader(
                 logFile.toPath(), StandardCharsets.UTF_8)) {
             
             List<String> allLines = new ArrayList<>();

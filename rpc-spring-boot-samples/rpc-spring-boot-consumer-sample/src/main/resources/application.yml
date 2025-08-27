@@ -9,6 +9,8 @@ spring:
     name: rpc-consumer-sample
   profiles:
     active: dev
+  banner:
+    location: banner/banner.txt
 
 # RPC Framework Configuration
 rpc:

@@ -9,6 +9,9 @@ spring:
     name: rpc-provider-sample
   profiles:
     active: local
+  # banner location
+  banner:
+    location: banner/banner.txt
 
 # RPC Framework Configuration
 rpc:

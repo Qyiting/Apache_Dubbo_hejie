@@ -1,12 +1,16 @@
 package com.hejiexmu.rpc.samples.provider.controller;
 
+import com.rpc.core.serviceinfo.ServiceInfo;
+import com.rpc.registry.ServiceRegistry;
+import com.rpc.registry.zookeeper.ZookeeperServiceRegistry;
+import com.rpc.server.RpcServer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.actuate.endpoint.web.WebEndpointResponse;
 import org.springframework.boot.actuate.health.HealthEndpoint;
 import org.springframework.boot.actuate.info.InfoEndpoint;
 import org.springframework.boot.actuate.metrics.MetricsEndpoint;
 import org.springframework.boot.actuate.env.EnvironmentEndpoint;
+import org.springframework.core.env.Environment;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -37,13 +41,13 @@ public class ActuatorController {
     private EnvironmentEndpoint environmentEndpoint;
     
     @Autowired(required = false)
-    private com.rpc.server.RpcServer rpcServer;
+    private RpcServer rpcServer;
     
     @Autowired(required = false)
-    private com.rpc.registry.ServiceRegistry serviceRegistry;
+    private ServiceRegistry serviceRegistry;
     
     @Autowired
-    private org.springframework.core.env.Environment environment;
+    private Environment environment;
 
     /**
      * 获取增强的健康检查信息
@@ -223,15 +227,15 @@ public class ActuatorController {
             if (serviceRegistry != null) {
                 try {
                     // 使用ZookeeperServiceRegistry的getAllServiceInstances方法来获取所有实例
-                    if (serviceRegistry instanceof com.rpc.registry.zookeeper.ZookeeperServiceRegistry) {
-                        com.rpc.registry.zookeeper.ZookeeperServiceRegistry zkRegistry = 
-                            (com.rpc.registry.zookeeper.ZookeeperServiceRegistry) serviceRegistry;
+                    if (serviceRegistry instanceof ZookeeperServiceRegistry) {
+                        ZookeeperServiceRegistry zkRegistry =
+                            (ZookeeperServiceRegistry) serviceRegistry;
                         
                         // 获取所有服务实例
-                        List<com.rpc.core.serviceinfo.ServiceInfo> allServiceInstances = zkRegistry.getAllServiceInstances();
+                        List<ServiceInfo> allServiceInstances = zkRegistry.getAllServiceInstances();
                         log.info("从注册中心获取到所有服务实例数量：{}", allServiceInstances.size());
                         
-                        for (com.rpc.core.serviceinfo.ServiceInfo serviceInfo : allServiceInstances) {
+                        for (ServiceInfo serviceInfo : allServiceInstances) {
                             String instanceKey = serviceInfo.getAddress() + ":" + serviceInfo.getPort();
                             if (!processedInstances.contains(instanceKey)) {
                                 processedInstances.add(instanceKey);
@@ -255,9 +259,8 @@ public class ActuatorController {
                             for (String serviceName : allServiceNames) {
                                 try {
                                     // 发现该服务的所有实例
-                                    List<com.rpc.core.serviceinfo.ServiceInfo> serviceInstances = serviceRegistry.discover(serviceName);
-                                    
-                                    for (com.rpc.core.serviceinfo.ServiceInfo serviceInfo : serviceInstances) {
+                                    List<ServiceInfo> serviceInstances = serviceRegistry.discover(serviceName);
+                                    for (ServiceInfo serviceInfo : serviceInstances) {
                                         String instanceKey = serviceInfo.getAddress() + ":" + serviceInfo.getPort();
                                         if (!processedInstances.contains(instanceKey)) {
                                             processedInstances.add(instanceKey);
