@@ -49,22 +49,7 @@ management:
     metrics:
       enabled: true
 
-# Logging Configuration
-logging:
-  level:
-    root: INFO
-    org.springframework.boot.autoconfigure: DEBUG
-    com.hejiexmu.rpc: DEBUG
-    com.rpc: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-  file:
-    name: logs/rpc-provider.log
-  logback:
-    rollingpolicy:
-      max-file-size: 100MB
-      max-history: 30
+# Logging Configuration is now handled by logback-spring.xml
 
 # Application Info
 info:

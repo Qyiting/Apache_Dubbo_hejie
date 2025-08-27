@@ -34,6 +34,7 @@ public class ServiceInfo implements Serializable {
     private String group = "default"; // 服务分组
     private int weight = 1; // 权重
     private ServiceStatus status = ServiceStatus.ACTIVE; // 服务状态
+    private byte serializerType = 1; // 序列化类型，默认为KRYO(1)
     private long registerTime; // 注册时间
     private long lastUpdateTime; // 最后更新时间
 

@@ -1,7 +1,7 @@
 package com.hejiexmu.rpc.samples.consumer;
 
-import com.hejiexmu.rpc.samples.consumer.entity.User;
-import com.hejiexmu.rpc.samples.consumer.service.UserService;
+import com.hejiexmu.rpc.samples.api.entity.User;
+import com.hejiexmu.rpc.samples.api.service.UserService;
 import com.hejiexmu.rpc.spring.boot.config.RpcCompatibilityConfiguration.RpcProgrammaticHelper;
 import com.hejiexmu.rpc.spring.boot.properties.RpcProperties;
 import com.rpc.client.RpcClient;
@@ -21,8 +21,10 @@ import java.util.List;
  * @author hejiexmu
  */
 @Slf4j
-@Component
+// @Component  // 暂时禁用自动执行，避免在启动时调用不存在的服务版本
 public class ProgrammaticApiExample implements CommandLineRunner {
+    
+
     
     @Autowired
     private RpcProgrammaticHelper rpcHelper;
@@ -73,7 +75,7 @@ public class ProgrammaticApiExample implements CommandLineRunner {
         
         try {
             // 创建默认版本的服务代理
-            UserService userService = rpcHelper.createServiceProxy(UserService.class);
+            UserService userService = rpcHelper.createServiceProxy(com.hejiexmu.rpc.samples.api.service.UserService.class);
             
             // 调用服务方法
             List<User> users = userService.getAllUsers();
@@ -85,7 +87,7 @@ public class ProgrammaticApiExample implements CommandLineRunner {
             }
             
             // 创建指定版本和分组的服务代理
-            UserService userServiceV2 = rpcHelper.createServiceProxy(UserService.class, "2.0.0", "test");
+            UserService userServiceV2 = rpcHelper.createServiceProxy(com.hejiexmu.rpc.samples.api.service.UserService.class, "2.0.0", "test");
             Long userCount = userServiceV2.getUserCount();
             log.info("通过Helper API (v2.0.0) 获取用户总数：{}", userCount);
             
@@ -105,7 +107,7 @@ public class ProgrammaticApiExample implements CommandLineRunner {
             byte serializationType = rpcProperties.getProvider().getSerializer();
             
             // 创建服务代理
-            UserService userService = rpcProxyFactory.createProxy(UserService.class, serializationType);
+            UserService userService = rpcProxyFactory.createProxy(com.hejiexmu.rpc.samples.api.service.UserService.class, serializationType);
             
             // 调用服务方法
             boolean exists = userService.existsByUsername("admin");
@@ -147,8 +149,8 @@ public class ProgrammaticApiExample implements CommandLineRunner {
         
         try {
             // 编程式：动态创建不同版本的服务代理
-            UserService defaultService = rpcHelper.createServiceProxy(UserService.class);
-            UserService testService = rpcHelper.createServiceProxy(UserService.class, "1.0.0", "test");
+            UserService defaultService = rpcHelper.createServiceProxy(com.hejiexmu.rpc.samples.api.service.UserService.class);
+            UserService testService = rpcHelper.createServiceProxy(com.hejiexmu.rpc.samples.api.service.UserService.class, "1.0.0", "test");
             
             // 比较不同版本服务的响应
             Long defaultCount = defaultService.getUserCount();

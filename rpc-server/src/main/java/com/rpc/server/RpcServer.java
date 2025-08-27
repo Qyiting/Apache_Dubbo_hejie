@@ -338,6 +338,7 @@ public class RpcServer {
         serviceInfo.setAddress(host);
         serviceInfo.setPort(port);
         serviceInfo.setStatus(ServiceInfo.ServiceStatus.ACTIVE);
+        serviceInfo.setSerializerType(serializer.getType()); // 设置序列化类型
         serviceInfo.setRegisterTime(System.currentTimeMillis());
         serviceInfo.setLastUpdateTime(System.currentTimeMillis());
         return serviceInfo;

@@ -11,6 +11,7 @@ import com.rpc.client.RpcClient;
 import com.rpc.core.request.RpcRequest;
 import com.rpc.core.response.RpcResponse;
 import com.rpc.core.retry.RetryStrategy;
+import com.rpc.core.serviceinfo.ServiceInfo;
 import com.rpc.serialization.Serializer;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,18 @@ public class RpcProxyFactory {
     }
 
     /**
+     * 创建服务代理（自动序列化协商）
+     *
+     * @param interfaceClass 服务接口类
+     * @param <T> 服务接口类型
+     * @return 服务代理对象
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T createProxy(Class<T> interfaceClass) {
+        return createProxy(interfaceClass, version, group, timeout);
+    }
+    
+    /**
      * 创建服务代理
      *
      * @param interfaceClass 服务接口类
@@ -56,6 +69,19 @@ public class RpcProxyFactory {
     public <T> T createProxy(Class<T> interfaceClass, Byte serializationType) {
         return createProxy(interfaceClass, version, group, timeout, serializationType);
     }
+    /**
+     * 创建服务代理（自动序列化协商）
+     *
+     * @param interfaceClass 服务接口类
+     * @param version 服务版本
+     * @param <T> 服务接口类型
+     * @return 服务代理对象
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T createProxy(Class<T> interfaceClass, String version) {
+        return createProxy(interfaceClass, version, group, timeout);
+    }
+    
     /**
      * 创建服务代理
      *
@@ -70,6 +96,20 @@ public class RpcProxyFactory {
     }
 
     /**
+     * 创建服务代理（自动序列化协商）
+     *
+     * @param interfaceClass 服务接口类
+     * @param version 服务版本
+     * @param group 服务分组
+     * @param <T> 服务接口类型
+     * @return 服务代理对象
+     */
+    @SuppressWarnings("unchecked")
+    public <T> T createProxy(Class<T> interfaceClass, String version, String group) {
+        return createProxy(interfaceClass, version, group, timeout);
+    }
+    
+    /**
      * 创建服务代理
      *
      * @param interfaceClass 服务接口类
@@ -83,6 +123,22 @@ public class RpcProxyFactory {
         return createProxy(interfaceClass, version, group, timeout, serializationType);
     }
 
+    /**
+     * 创建服务代理（自动序列化协商）
+     *
+     * @param interfaceClass 服务接口类
+     * @param version 服务版本
+     * @param group 服务分组
+     * @param timeout 请求超时时间
+     * @param <T> 服务接口类型
+     * @return 服务代理对象
+     */
+    public <T> T createProxy(Class<T> interfaceClass, String version, String group, long timeout) {
+        // 从服务发现中获取序列化类型
+        Byte serializationType = getSerializationTypeFromServiceDiscovery(interfaceClass.getName(), version, group);
+        return createProxy(interfaceClass, version, group, timeout, serializationType);
+    }
+    
     /**
      * 创建服务代理
      *
@@ -185,14 +241,14 @@ public class RpcProxyFactory {
             // 构建RPC请求
             RpcRequest request = buildRpcRequest(method, args);
             
-            // 使用重试策略发送请求
+            // 使用重试策略发送请求，支持序列化协商
             String serviceName = interfaceClass.getName();
             RpcResponse response;
             
             try {
                 response = RetryStrategy.executeWithRetry(() -> {
                     try {
-                        return rpcClient.sendRequest(request, timeout, serializationType);
+                        return sendRequestWithSerializationNegotiation(request, timeout);
                     } catch (Exception e) {
                         throw new RuntimeException(e);
                     }
@@ -222,6 +278,46 @@ public class RpcProxyFactory {
             
             return result;
         }
+        
+        /**
+         * 发送请求并支持序列化协商
+         */
+        private RpcResponse sendRequestWithSerializationNegotiation(RpcRequest request, long timeout) throws Exception {
+            byte currentSerializationType = serializationType;
+            
+            try {
+                // 首先尝试使用当前序列化类型
+                return rpcClient.sendRequest(request, timeout, currentSerializationType);
+            } catch (Exception e) {
+                // 如果失败且错误信息包含序列化相关内容，尝试协商
+                if (isSerializationError(e)) {
+                    log.warn("序列化类型不匹配，尝试协商：当前类型={}, 错误={}", currentSerializationType, e.getMessage());
+                    
+                    // 尝试其他序列化类型
+                    byte[] fallbackTypes = {Serializer.SerializerType.KRYO, Serializer.SerializerType.JSON, 
+                                           Serializer.SerializerType.HESSIAN, Serializer.SerializerType.PROTOSTUFF};
+                    
+                    for (byte fallbackType : fallbackTypes) {
+                        if (fallbackType != currentSerializationType) {
+                            try {
+                                log.info("尝试使用序列化类型：{}", fallbackType);
+                                RpcResponse response = rpcClient.sendRequest(request, timeout, fallbackType);
+                                log.info("序列化协商成功，使用类型：{}", fallbackType);
+                                return response;
+                            } catch (Exception fallbackException) {
+                                log.debug("序列化类型 {} 协商失败：{}", fallbackType, fallbackException.getMessage());
+                            }
+                        }
+                    }
+                }
+                
+                // 如果协商失败，抛出原始异常
+                throw e;
+            }
+        }
+        
+
+        
         /**
          * 转换JSON反序列化的结果
          * 解决JSON反序列化时将复杂对象反序列化为LinkedHashMap的问题
@@ -309,7 +405,7 @@ public class RpcProxyFactory {
             // 构建RPC请求
             RpcRequest request = buildRpcRequest(method, args);
             // 异步发送请求并处理CompletableFuture嵌套问题
-            return rpcClient.sendRequestAsync(request, timeout, serializationType)
+            return sendRequestAsyncWithSerializationNegotiation(request, timeout)
                     .thenCompose(response -> {
                         if(response.getException() != null) {
                             CompletableFuture<Object> failedFuture = new CompletableFuture<>();
@@ -327,6 +423,59 @@ public class RpcProxyFactory {
                         }
                     });
         }
+        
+        private CompletableFuture<RpcResponse> sendRequestAsyncWithSerializationNegotiation(RpcRequest request, long timeout) {
+            // 首先尝试使用当前序列化类型
+            return rpcClient.sendRequestAsync(request, timeout, serializationType)
+                    .handle((response, throwable) -> {
+                        if (throwable != null && isSerializationError((Exception) throwable)) {
+                            log.warn("序列化类型 {} 失败，尝试协商其他序列化类型: {}", serializationType, throwable.getMessage());
+                            // 尝试其他序列化类型
+                            return tryFallbackSerializationTypesAsync(request, timeout, throwable);
+                        }
+                        if (throwable != null) {
+                            CompletableFuture<RpcResponse> failedFuture = new CompletableFuture<>();
+                            failedFuture.completeExceptionally(throwable);
+                            return failedFuture;
+                        }
+                        return CompletableFuture.completedFuture(response);
+                    })
+                    .thenCompose(future -> future);
+        }
+        
+        private CompletableFuture<RpcResponse> tryFallbackSerializationTypesAsync(RpcRequest request, long timeout, Throwable originalException) {
+            Byte[] fallbackTypes = {Serializer.SerializerType.KRYO, Serializer.SerializerType.JSON, Serializer.SerializerType.HESSIAN, Serializer.SerializerType.PROTOSTUFF};
+            
+            CompletableFuture<RpcResponse> result = CompletableFuture.completedFuture(null);
+            
+            for (Byte fallbackType : fallbackTypes) {
+                if (!fallbackType.equals(serializationType)) {
+                    result = result.thenCompose(response -> {
+                        if (response != null) {
+                            return CompletableFuture.completedFuture(response);
+                        }
+                        log.info("尝试使用序列化类型: {}", fallbackType);
+                        return rpcClient.sendRequestAsync(request, timeout, fallbackType)
+                                .handle((resp, ex) -> {
+                                    if (ex == null) {
+                                        log.info("序列化协商成功，使用类型: {}", fallbackType);
+                                        return resp;
+                                    }
+                                    return null;
+                                });
+                    });
+                }
+            }
+            
+            return result.thenCompose(response -> {
+                if (response != null) {
+                    return CompletableFuture.completedFuture(response);
+                }
+                CompletableFuture<RpcResponse> failedFuture = new CompletableFuture<>();
+                failedFuture.completeExceptionally(originalException);
+                return failedFuture;
+            });
+        }
 
         private RpcRequest buildRpcRequest(Method method, Object[] args) {
             RpcRequest request = new RpcRequest();
@@ -338,6 +487,68 @@ public class RpcProxyFactory {
             request.setGroup(group);
             request.setTimeout(timeout);
             return request;
+        }
+    }
+    
+    /**
+     * 判断是否为序列化相关错误
+     */
+    private boolean isSerializationError(Exception e) {
+        String message = e.getMessage();
+        if (message == null) {
+            return false;
+        }
+        
+        return message.contains("序列化") || message.contains("反序列化") || 
+               message.contains("serialization") || message.contains("deserialization") ||
+               message.contains("ClassCastException") || message.contains("类型转换");
+    }
+    
+    /**
+     * 从服务发现中获取序列化类型
+     *
+     * @param serviceName 服务名称
+     * @param version 服务版本
+     * @param group 服务分组
+     * @return 序列化类型
+     */
+    private Byte getSerializationTypeFromServiceDiscovery(String serviceName, String version, String group) {
+        try {
+            // 从服务注册中心发现服务
+            List<ServiceInfo> serviceInfos = rpcClient.getServiceRegistry().discover(serviceName, version, group);
+            
+            if (serviceInfos == null || serviceInfos.isEmpty()) {
+                log.warn("未发现服务：{}，使用默认序列化类型 KRYO", serviceName);
+                return Serializer.SerializerType.KRYO;
+            }
+            
+            // 查找匹配版本和分组的服务
+            for (ServiceInfo serviceInfo : serviceInfos) {
+                if (version.equals(serviceInfo.getVersion()) && group.equals(serviceInfo.getGroup())) {
+                    Byte serializationType = serviceInfo.getSerializerType();
+                    if (serializationType != null) {
+                        log.info("从服务发现获取序列化类型：服务={}，版本={}，分组={}，序列化类型={}", 
+                                serviceName, version, group, serializationType);
+                        return serializationType;
+                    }
+                }
+            }
+            
+            // 如果没有找到匹配的版本和分组，使用第一个可用的服务的序列化类型
+            ServiceInfo firstService = serviceInfos.get(0);
+            Byte serializationType = firstService.getSerializerType();
+            if (serializationType != null) {
+                log.info("使用第一个可用服务的序列化类型：服务={}，序列化类型={}", serviceName, serializationType);
+                return serializationType;
+            }
+            
+            log.warn("服务 {} 未包含序列化类型信息，使用默认序列化类型 KRYO", serviceName);
+            return Serializer.SerializerType.KRYO;
+            
+        } catch (Exception e) {
+            log.error("从服务发现获取序列化类型失败：服务={}，错误={}", serviceName, e.getMessage());
+            log.info("使用默认序列化类型 KRYO");
+            return Serializer.SerializerType.KRYO;
         }
     }
 

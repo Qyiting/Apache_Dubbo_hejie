@@ -1,11 +1,11 @@
-package com.hejiexmu.rpc.samples.consumer.service;
+package com.hejiexmu.rpc.samples.api.service;
 
-import com.hejiexmu.rpc.samples.consumer.entity.User;
+import com.hejiexmu.rpc.samples.api.entity.User;
 
 import java.util.List;
 
 /**
- * 用户服务接口 - Consumer端
+ * 用户服务接口
  * 
  * @author hejiexmu
  */

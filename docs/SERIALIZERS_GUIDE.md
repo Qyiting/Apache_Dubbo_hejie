@@ -17,7 +17,22 @@
 
 ## 使用方法
 
-### 1. 配置默认序列化器
+### 1. 自动序列化协商（推荐）
+
+框架现在支持自动序列化协商机制，客户端会自动从服务发现获取服务端的序列化类型：
+
+```java
+// 创建RPC客户端，无需指定序列化器
+RpcClient rpcClient = new RpcClient(serviceRegistry, loadBalancer);
+
+// 获取服务代理，框架会自动从服务发现获取序列化类型
+UserService userService = rpcClient.createService(UserService.class, "1.0");
+
+// 如果服务端序列化类型不匹配，框架会自动尝试其他序列化类型
+User user = userService.getUserById(1L);
+```
+
+### 2. 配置默认序列化器（兼容模式）
 
 在客户端或服务端启动时设置默认序列化器：
 
@@ -30,7 +45,7 @@ Serializer defaultSerializer = SerializerFactory.getDefaultSerializer();
 System.out.println("当前默认序列化器：" + defaultSerializer.getName());
 ```
 
-### 2. 创建指定序列化器的RPC客户端
+### 3. 创建指定序列化器的RPC客户端（兼容模式）
 
 ```java
 // 创建使用JSON序列化的RPC客户端
@@ -41,7 +56,7 @@ RpcClient rpcClient = new RpcClient(serviceRegistry, loadBalancer, jsonSerialize
 RpcClient rpcClient = new RpcClient(serviceRegistry, loadBalancer);
 ```
 
-### 3. 创建指定序列化器的RPC服务端
+### 4. 创建指定序列化器的RPC服务端
 
 ```java
 // 创建使用Hessian序列化的RPC服务端
@@ -49,7 +64,7 @@ Serializer hessianSerializer = SerializerFactory.getSerializer(Serializer.Serial
 RpcServer rpcServer = new RpcServer("localhost", 8080, serviceProvider, serviceRegistry, hessianSerializer);
 ```
 
-### 4. 运行时切换序列化器
+### 5. 运行时切换序列化器
 
 ```java
 // 获取所有支持的序列化器类型
@@ -73,24 +88,49 @@ Serializer serializer = SerializerFactory.getSerializer(Serializer.SerializerTyp
 | JSON    | 中等       | 中等         | 大         |
 | JDK     | 慢         | 慢           | 大         |
 
+## 序列化协商机制
+
+框架内置了智能的序列化协商机制，能够自动处理客户端和服务端序列化类型不匹配的情况：
+
+### 工作原理
+
+1. **服务注册时**：服务端会将其使用的序列化类型注册到服务发现中心
+2. **服务发现时**：客户端从服务发现中心获取服务端的序列化类型
+3. **自动协商**：如果首次调用失败，框架会自动尝试其他序列化类型
+4. **协商顺序**：KRYO → JSON → HESSIAN → PROTOSTUFF
+
+### 协商日志
+
+```
+[INFO] 从服务发现获取序列化类型：服务=com.example.UserService，版本=1.0.0，分组=default，序列化类型=1
+[WARN] 序列化类型 2 失败，尝试协商其他序列化类型: 序列化异常
+[INFO] 尝试使用序列化类型: 1
+[INFO] 序列化协商成功，使用类型: 1
+```
+
 ## 注意事项
 
-### 1. Protobuf使用限制
+### 1. 序列化协商
+- 框架会自动处理序列化类型不匹配的情况
+- 建议服务端和客户端使用相同的序列化类型以获得最佳性能
+- 协商过程可能会增加首次调用的延迟
+
+### 2. Protobuf使用限制
 Protobuf序列化器要求消息类必须继承`com.google.protobuf.Message`，并且需要通过`.proto`文件定义消息格式后生成对应的Java类。
 
-### 2. JDK序列化限制
+### 3. JDK序列化限制
 JDK序列化器要求所有被序列化的类必须实现`java.io.Serializable`接口。
 
-### 3. ProtoStuff使用说明
+### 4. ProtoStuff使用说明
 ProtoStuff序列化器无需编写`.proto`文件，可以直接序列化POJO对象。但要求被序列化的类必须有默认构造函数，并且字段应该有getter/setter方法。
 
-### 4. 兼容性考虑
+### 5. 兼容性考虑
 - **跨语言通信**：建议使用JSON或Protobuf
 - **高性能要求**：建议使用Kryo、ProtoStuff或Protobuf
 - **调试方便**：建议使用JSON
 - **无需IDL定义**：建议使用ProtoStuff或Kryo
 
-### 4. 线程安全
+### 6. 线程安全
 所有序列化器实现都是线程安全的，可以在多线程环境中共享使用。
 
 ## 示例代码

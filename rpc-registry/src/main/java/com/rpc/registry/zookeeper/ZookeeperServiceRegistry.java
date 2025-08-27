@@ -119,14 +119,15 @@ public class ZookeeperServiceRegistry implements ServiceRegistry {
      * 构建服务数据
      */
     private String buildServiceData(ServiceInfo serviceInfo) {
-        return String.format("%s:%d|%s|%s|%d|%s|%d",
+        return String.format("%s:%d|%s|%s|%d|%s|%d|%d",
                 serviceInfo.getAddress(),
                 serviceInfo.getPort(),
                 serviceInfo.getVersion() != null?serviceInfo.getVersion():"",
                 serviceInfo.getGroup() != null?serviceInfo.getGroup():"",
                 serviceInfo.getWeight(),
                 serviceInfo.getStatus().getDescription(),
-                System.currentTimeMillis());
+                System.currentTimeMillis(),
+                serviceInfo.getSerializerType());
     }
 
     /**
@@ -146,6 +147,10 @@ public class ZookeeperServiceRegistry implements ServiceRegistry {
                     serviceInfo.setWeight(Integer.parseInt(parts[3]));
                     serviceInfo.setStatus(parseServiceStatus(parts[4]));
                     serviceInfo.setLastUpdateTime(Long.parseLong(parts[5]));
+                    // 解析序列化类型（如果存在）
+                    if(parts.length >= 7 && !parts[6].isEmpty()) {
+                        serviceInfo.setSerializerType(Byte.parseByte(parts[6]));
+                    }
                     return serviceInfo;
                 }
             }

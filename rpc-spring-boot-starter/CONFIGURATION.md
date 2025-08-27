@@ -269,6 +269,7 @@ rpc:
     enabled: true
     timeout: 10000            # 开发环境可以设置更长超时
     connection-pool-size: 5
+    # 注意：消费者不再需要配置序列化器，框架会自动从服务发现获取
   load-balancer: round_robin
 
 # 开启详细日志
@@ -297,6 +298,7 @@ rpc:
     timeout: 8000
     retry-count: 2
     connection-pool-size: 10
+    # 注意：消费者不再需要配置序列化器，框架会自动从服务发现获取
   load-balancer: random
 ```
 
@@ -322,6 +324,7 @@ rpc:
     timeout: 5000
     retry-count: 3
     connection-pool-size: 50
+    # 注意：消费者不再需要配置序列化器，框架会自动从服务发现获取
   load-balancer: consistent_hash
 
 # 生产环境日志配置
@@ -385,7 +388,7 @@ rpc:
 ### 配置冲突检查
 
 - 同一应用不能同时在相同端口启动多个RPC服务器
-- 序列化器类型必须在提供者和消费者之间保持一致
+- ~~序列化器类型必须在提供者和消费者之间保持一致~~（已支持自动序列化协商）
 
 ## 配置最佳实践
 

@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>RPC Consumer 服务调用测试界面</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .nav {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .nav-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            padding: 12px 24px;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .nav-btn:hover, .nav-btn.active {
+            background: rgba(255,255,255,0.3);
+            border-color: rgba(255,255,255,0.6);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .content {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            backdrop-filter: blur(10px);
+            min-height: 600px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            font-size: 18px;
+            color: #666;
+        }
+
+        .service-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            height: 100%;
+        }
+
+        .service-list {
+            border-right: 2px solid #eee;
+            padding-right: 20px;
+        }
+
+        .service-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .service-item:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+        }
+
+        .service-item.active {
+            background: #007bff;
+            color: white;
+            border-color: #0056b3;
+        }
+
+        .service-name {
+            font-weight: bold;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .service-info {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .service-item.active .service-info {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .method-panel {
+            padding-left: 20px;
+        }
+
+        .method-list {
+            margin-bottom: 20px;
+        }
+
+        .method-item {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .method-item:hover {
+            background: #e9ecef;
+        }
+
+        .method-item.active {
+            background: #28a745;
+            color: white;
+            border-color: #1e7e34;
+        }
+
+        .method-name {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .method-params {
+            font-size: 12px;
+            color: #666;
+        }
+
+        .method-item.active .method-params {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .invoke-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .param-input {
+            margin-bottom: 15px;
+        }
+
+        .param-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .param-field {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .invoke-btn {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 30px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .invoke-btn:hover {
+            background: #0056b3;
+            transform: translateY(-1px);
+        }
+
+        .invoke-btn:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result-panel {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+        }
+
+        .result-success {
+            border-color: #28a745;
+            background: #d4edda;
+        }
+
+        .result-error {
+            border-color: #dc3545;
+            background: #f8d7da;
+        }
+
+        .result-title {
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: #495057;
+        }
+
+        .result-content {
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .status-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #eee;
+            margin-bottom: 20px;
+        }
+
+        .status-info {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .refresh-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .refresh-btn:hover {
+            background: #1e7e34;
+        }
+
+        .error-message {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #ccc;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 RPC Consumer 服务调用测试</h1>
+            <p>动态发现服务，实时调用测试</p>
+        </div>
+
+        <div class="nav">
+            <button class="nav-btn active" onclick="showServiceTest()">服务调用测试</button>
+            <button class="nav-btn" onclick="showManagement()">服务管理</button>
+            <button class="nav-btn" onclick="showHealth()">健康监控</button>
+        </div>
+
+        <div class="content">
+            <div id="service-test-panel">
+                <div class="status-bar">
+                    <div class="status-info">
+                        <span id="service-count">正在加载服务...</span>
+                    </div>
+                    <button class="refresh-btn" onclick="loadServices()">🔄 刷新服务</button>
+                </div>
+
+                <div class="service-grid">
+                    <div class="service-list">
+                        <h3>📋 可用服务列表</h3>
+                        <div id="services-container">
+                            <div class="loading">正在加载服务列表...</div>
+                        </div>
+                    </div>
+
+                    <div class="method-panel">
+                        <div id="method-section" style="display: none;">
+                            <h3>🔧 服务方法</h3>
+                            <div id="methods-container"></div>
+
+                            <div id="invoke-section" style="display: none;">
+                                <div class="invoke-panel">
+                                    <h4>📞 方法调用</h4>
+                                    <div id="params-container"></div>
+                                    <button class="invoke-btn" onclick="invokeMethod()" id="invoke-button">
+                                        🚀 调用方法
+                                    </button>
+                                </div>
+
+                                <div id="result-section" style="display: none;">
+                                    <div class="result-panel" id="result-panel">
+                                        <div class="result-title">📊 调用结果</div>
+                                        <div class="result-content" id="result-content"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="empty-state" class="empty-state">
+                            <div>📡</div>
+                            <h3>选择一个服务开始测试</h3>
+                            <p>从左侧列表中选择要测试的RPC服务</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="management-panel" style="display: none;">
+                <h2>🛠️ 服务管理</h2>
+                <div id="management-content">
+                    <div class="loading">正在加载管理信息...</div>
+                </div>
+            </div>
+
+            <div id="health-panel" style="display: none;">
+                <h2>💊 健康监控</h2>
+                <div id="health-content">
+                    <div class="loading">正在加载健康信息...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentServices = [];
+        let selectedService = null;
+        let selectedMethod = null;
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            loadServices();
+        });
+
+        // 导航切换
+        function showServiceTest() {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('service-test-panel').style.display = 'block';
+            document.getElementById('management-panel').style.display = 'none';
+            document.getElementById('health-panel').style.display = 'none';
+        }
+
+        function showManagement() {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('service-test-panel').style.display = 'none';
+            document.getElementById('management-panel').style.display = 'block';
+            document.getElementById('health-panel').style.display = 'none';
+            loadManagementInfo();
+        }
+
+        function showHealth() {
+            document.querySelectorAll('.nav-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            document.getElementById('service-test-panel').style.display = 'none';
+            document.getElementById('management-panel').style.display = 'none';
+            document.getElementById('health-panel').style.display = 'block';
+            loadHealthInfo();
+        }
+
+        // 加载服务列表
+        async function loadServices() {
+            try {
+                const response = await fetch('/api/management/services');
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const services = await response.json();
+                currentServices = services;
+                renderServices(services);
+                
+                document.getElementById('service-count').textContent = 
+                    `发现 ${services.length} 个服务`;
+            } catch (error) {
+                console.error('加载服务失败:', error);
+                document.getElementById('services-container').innerHTML = 
+                    `<div class="error-message">加载服务失败: ${error.message}</div>`;
+                document.getElementById('service-count').textContent = '加载失败';
+            }
+        }
+
+        // 渲染服务列表
+        function renderServices(services) {
+            const container = document.getElementById('services-container');
+            
+            if (services.length === 0) {
+                container.innerHTML = '<div class="empty-state"><div>📭</div><p>暂无可用服务</p></div>';
+                return;
+            }
+
+            const html = services.map((service, index) => `
+                <div class="service-item" onclick="selectService(${index})">
+                    <div class="service-name">${service.serviceName}</div>
+                    <div class="service-info">
+                        接口: ${service.interfaceClass}<br>
+                        实例数: ${service.instanceCount} | 方法数: ${service.methods.length}
+                    </div>
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+
+        // 选择服务
+        function selectService(index) {
+            selectedService = currentServices[index];
+            selectedMethod = null;
+            
+            // 更新UI状态
+            document.querySelectorAll('.service-item').forEach((item, i) => {
+                item.classList.toggle('active', i === index);
+            });
+            
+            // 显示方法列表
+            renderMethods(selectedService.methods);
+            document.getElementById('method-section').style.display = 'block';
+            document.getElementById('empty-state').style.display = 'none';
+            document.getElementById('invoke-section').style.display = 'none';
+        }
+
+        // 渲染方法列表
+        function renderMethods(methods) {
+            const container = document.getElementById('methods-container');
+            
+            if (methods.length === 0) {
+                container.innerHTML = '<div class="empty-state"><p>该服务暂无可用方法</p></div>';
+                return;
+            }
+
+            const html = methods.map((method, index) => {
+                const paramStr = method.parameters.map(p => `${p.type} ${p.name}`).join(', ');
+                return `
+                    <div class="method-item" onclick="selectMethod(${index})">
+                        <div class="method-name">${method.returnType} ${method.name}()</div>
+                        <div class="method-params">参数: ${paramStr || '无参数'}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            container.innerHTML = html;
+        }
+
+        // 选择方法
+        function selectMethod(index) {
+            selectedMethod = selectedService.methods[index];
+            
+            // 更新UI状态
+            document.querySelectorAll('.method-item').forEach((item, i) => {
+                item.classList.toggle('active', i === index);
+            });
+            
+            // 显示调用面板
+            renderInvokePanel(selectedMethod);
+            document.getElementById('invoke-section').style.display = 'block';
+            document.getElementById('result-section').style.display = 'none';
+        }
+
+        // 渲染调用面板
+        function renderInvokePanel(method) {
+            const container = document.getElementById('params-container');
+            
+            if (method.parameters.length === 0) {
+                container.innerHTML = '<p style="color: #666; font-style: italic;">该方法无需参数</p>';
+                return;
+            }
+
+            const html = method.parameters.map((param, index) => `
+                <div class="param-input">
+                    <label class="param-label">${param.name} (${param.type})</label>
+                    <input type="text" class="param-field" id="param-${index}" 
+                           placeholder="请输入${param.type}类型的值" />
+                </div>
+            `).join('');
+            
+            container.innerHTML = html;
+        }
+
+        // 调用方法
+        async function invokeMethod() {
+            if (!selectedService || !selectedMethod) {
+                alert('请先选择服务和方法');
+                return;
+            }
+
+            const button = document.getElementById('invoke-button');
+            button.disabled = true;
+            button.textContent = '🔄 调用中...';
+
+            try {
+                // 收集参数
+                const parameters = [];
+                for (let i = 0; i < selectedMethod.parameters.length; i++) {
+                    const input = document.getElementById(`param-${i}`);
+                    let value = input.value.trim();
+                    
+                    if (value) {
+                        // 尝试解析JSON格式的参数
+                        try {
+                            value = JSON.parse(value);
+                        } catch (e) {
+                            // 如果不是JSON，保持原始字符串
+                        }
+                    } else {
+                        value = null;
+                    }
+                    
+                    parameters.push(value);
+                }
+
+                // 发送调用请求
+                const response = await fetch(`/api/management/services/${encodeURIComponent(selectedService.serviceName)}/invoke`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        methodName: selectedMethod.name,
+                        parameters: parameters,
+                        version: '1.0.0',
+                        group: 'default'
+                    })
+                });
+
+                const result = await response.json();
+                displayResult(result);
+                
+            } catch (error) {
+                console.error('调用失败:', error);
+                displayResult({
+                    success: false,
+                    error: error.message,
+                    timestamp: new Date()
+                });
+            } finally {
+                button.disabled = false;
+                button.textContent = '🚀 调用方法';
+            }
+        }
+
+        // 显示调用结果
+        function displayResult(result) {
+            const panel = document.getElementById('result-panel');
+            const content = document.getElementById('result-content');
+            
+            panel.className = 'result-panel ' + (result.success ? 'result-success' : 'result-error');
+            
+            let displayContent = '';
+            if (result.success) {
+                displayContent = `✅ 调用成功\n\n`;
+                displayContent += `📊 返回结果:\n${JSON.stringify(result.result, null, 2)}\n\n`;
+                if (result.executionTime) {
+                    displayContent += `⏱️ 执行时间: ${result.executionTime}ms\n`;
+                }
+                displayContent += `🕐 调用时间: ${new Date(result.timestamp).toLocaleString()}`;
+            } else {
+                displayContent = `❌ 调用失败\n\n`;
+                displayContent += `💥 错误信息:\n${result.error}\n\n`;
+                if (result.stackTrace) {
+                    displayContent += `📋 堆栈跟踪:\n${result.stackTrace}`;
+                }
+            }
+            
+            content.textContent = displayContent;
+            document.getElementById('result-section').style.display = 'block';
+        }
+
+        // 加载管理信息
+        async function loadManagementInfo() {
+            try {
+                const response = await fetch('/api/management/overview');
+                const data = await response.json();
+                
+                const html = `
+                    <div class="status-card">
+                        <h3>📊 服务概览</h3>
+                        <p><strong>服务名称:</strong> ${data.serviceName}</p>
+                        <p><strong>版本:</strong> ${data.version}</p>
+                        <p><strong>状态:</strong> ${data.status}</p>
+                        <p><strong>启动时间:</strong> ${data.startTime}</p>
+                        <p><strong>Web端口:</strong> ${data.ports.webPort}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>🔍 服务发现</h3>
+                        <p><strong>注册中心类型:</strong> ${data.discovery.registryType || 'N/A'}</p>
+                        <p><strong>注册中心地址:</strong> ${data.discovery.registryAddress || 'N/A'}</p>
+                        <p><strong>发现服务数量:</strong> ${data.discovery.totalServices || 0}</p>
+                    </div>
+                `;
+                
+                document.getElementById('management-content').innerHTML = html;
+            } catch (error) {
+                document.getElementById('management-content').innerHTML = 
+                    `<div class="error-message">加载管理信息失败: ${error.message}</div>`;
+            }
+        }
+
+        // 加载健康信息
+        async function loadHealthInfo() {
+            try {
+                const response = await fetch('/api/management/health');
+                const data = await response.json();
+                
+                const html = `
+                    <div class="status-card">
+                        <h3>💊 系统健康状态</h3>
+                        <p><strong>状态:</strong> ${data.status}</p>
+                        <p><strong>检查时间:</strong> ${new Date(data.timestamp).toLocaleString()}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>🖥️ JVM 信息</h3>
+                        <p><strong>总内存:</strong> ${(data.jvm.totalMemory / 1024 / 1024).toFixed(2)} MB</p>
+                        <p><strong>已用内存:</strong> ${(data.jvm.usedMemory / 1024 / 1024).toFixed(2)} MB</p>
+                        <p><strong>空闲内存:</strong> ${(data.jvm.freeMemory / 1024 / 1024).toFixed(2)} MB</p>
+                        <p><strong>最大内存:</strong> ${(data.jvm.maxMemory / 1024 / 1024).toFixed(2)} MB</p>
+                        <p><strong>处理器数量:</strong> ${data.jvm.processors}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>🔧 系统信息</h3>
+                        <p><strong>Java版本:</strong> ${data.system.javaVersion}</p>
+                        <p><strong>操作系统:</strong> ${data.system.osName} ${data.system.osVersion}</p>
+                    </div>
+                    <div class="status-card">
+                        <h3>🌐 服务发现状态</h3>
+                        <p><strong>状态:</strong> ${data.serviceDiscovery.status}</p>
+                        <p><strong>类型:</strong> ${data.serviceDiscovery.type || 'N/A'}</p>
+                        ${data.serviceDiscovery.error ? `<p><strong>错误:</strong> ${data.serviceDiscovery.error}</p>` : ''}
+                    </div>
+                `;
+                
+                document.getElementById('health-content').innerHTML = html;
+            } catch (error) {
+                document.getElementById('health-content').innerHTML = 
+                    `<div class="error-message">加载健康信息失败: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>

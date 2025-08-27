@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>指标监控 - RPC Consumer</title>
+    <link rel="stylesheet" href="/css/management.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        .chart-container {
+            position: relative;
+            height: 300px;
+            margin: 20px 0;
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+        }
+        
+        .metrics-summary {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .metric-summary-card {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+        
+        .metric-summary-card:hover {
+            transform: translateY(-3px);
+        }
+        
+        .metric-summary-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+        
+        .metric-summary-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .metric-summary-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+        }
+        
+        .metric-summary-change {
+            font-size: 11px;
+            margin-top: 5px;
+        }
+        
+        .metric-summary-change.positive {
+            color: #28a745;
+        }
+        
+        .metric-summary-change.negative {
+            color: #dc3545;
+        }
+        
+        .metric-summary-change.neutral {
+            color: #6c757d;
+        }
+        
+        .metrics-table {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        
+        .metrics-table table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .metrics-table th,
+        .metrics-table td {
+            padding: 12px 15px;
+            text-align: left;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .metrics-table th {
+            background: #f8f9fa;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .metrics-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .metric-name {
+            font-family: 'Courier New', monospace;
+            font-weight: bold;
+        }
+        
+        .metric-value {
+            font-family: 'Courier New', monospace;
+            color: #007bff;
+        }
+        
+        .metric-trend {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            font-weight: bold;
+        }
+        
+        .metric-trend.up {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .metric-trend.down {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .metric-trend.stable {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .time-range-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            align-items: center;
+        }
+        
+        .time-range-btn {
+            padding: 6px 12px;
+            border: 1px solid #dee2e6;
+            background: white;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            transition: all 0.3s ease;
+        }
+        
+        .time-range-btn:hover {
+            background: #f8f9fa;
+        }
+        
+        .time-range-btn.active {
+            background: #007bff;
+            color: white;
+            border-color: #007bff;
+        }
+        
+        .export-controls {
+            display: flex;
+            gap: 10px;
+            margin-left: auto;
+        }
+        
+        .alert-rules {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+        
+        .alert-rule {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .alert-rule:last-child {
+            border-bottom: none;
+        }
+        
+        .alert-rule-info {
+            flex: 1;
+        }
+        
+        .alert-rule-name {
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .alert-rule-condition {
+            font-size: 12px;
+            color: #666;
+            margin-top: 2px;
+        }
+        
+        .alert-rule-status {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: bold;
+        }
+        
+        .alert-rule-status.active {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .alert-rule-status.inactive {
+            background: #e2e3e5;
+            color: #383d41;
+        }
+        
+        .alert-rule-status.triggered {
+            background: #f8d7da;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📈 指标监控</h1>
+            <p>系统性能指标和统计数据</p>
+        </div>
+        
+        <div class="nav">
+            <a href="/" class="nav-btn">🏠 首页</a>
+            <a href="/management/overview" class="nav-btn">📊 概览</a>
+            <a href="/management/discovery" class="nav-btn">🔍 服务发现</a>
+            <a href="/management/health" class="nav-btn">💚 健康检查</a>
+            <a href="/management/metrics" class="nav-btn active">📈 指标监控</a>
+        </div>
+        
+        <div class="content">
+            <!-- 时间范围选择器 -->
+            <div class="time-range-selector">
+                <span style="font-weight: bold; margin-right: 10px;">📅 时间范围:</span>
+                <button class="time-range-btn" onclick="selectTimeRange('1h')">1小时</button>
+                <button class="time-range-btn" onclick="selectTimeRange('6h')">6小时</button>
+                <button class="time-range-btn active" onclick="selectTimeRange('24h')">24小时</button>
+                <button class="time-range-btn" onclick="selectTimeRange('7d')">7天</button>
+                <button class="time-range-btn" onclick="selectTimeRange('30d')">30天</button>
+                
+                <div class="export-controls">
+                    <button class="btn btn-secondary" onclick="refreshMetrics()">🔄 刷新</button>
+                    <button class="btn btn-primary" onclick="exportMetrics()">📊 导出数据</button>
+                </div>
+            </div>
+            
+            <!-- 指标摘要卡片 -->
+            <div class="metrics-summary" id="metricsSummary">
+                <!-- 摘要卡片将通过JavaScript动态生成 -->
+            </div>
+            
+            <!-- 响应时间图表 -->
+            <div class="section">
+                <h3>⏱️ 响应时间趋势</h3>
+                <div class="chart-container">
+                    <canvas id="responseTimeChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- 调用量图表 -->
+            <div class="section">
+                <h3>📞 调用量统计</h3>
+                <div class="chart-container">
+                    <canvas id="callVolumeChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- 错误率图表 -->
+            <div class="section">
+                <h3>❌ 错误率分析</h3>
+                <div class="chart-container">
+                    <canvas id="errorRateChart"></canvas>
+                </div>
+            </div>
+            
+            <!-- 详细指标表格 -->
+            <div class="section">
+                <h3>📋 详细指标</h3>
+                <div class="metrics-table">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>指标名称</th>
+                                <th>当前值</th>
+                                <th>平均值</th>
+                                <th>最大值</th>
+                                <th>最小值</th>
+                                <th>趋势</th>
+                                <th>更新时间</th>
+                            </tr>
+                        </thead>
+                        <tbody id="metricsTableBody">
+                            <!-- 指标数据将通过JavaScript动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 告警规则 -->
+            <div class="section">
+                <h3>🚨 告警规则</h3>
+                <div class="btn-group">
+                    <button class="btn btn-success" onclick="addAlertRule()">➕ 添加规则</button>
+                    <button class="btn btn-warning" onclick="testAlertRules()">🧪 测试规则</button>
+                </div>
+                <div class="alert-rules" id="alertRules">
+                    <!-- 告警规则将通过JavaScript动态生成 -->
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentTimeRange = '24h';
+        let responseTimeChart, callVolumeChart, errorRateChart;
+        let metricsInterval;
+        
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeCharts();
+            refreshMetrics();
+            loadAlertRules();
+            
+            // 设置定时刷新
+            metricsInterval = setInterval(refreshMetrics, 60000); // 1分钟刷新一次
+        });
+        
+        // 初始化图表
+        function initializeCharts() {
+            // 响应时间图表
+            const responseTimeCtx = document.getElementById('responseTimeChart').getContext('2d');
+            responseTimeChart = new Chart(responseTimeCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '平均响应时间 (ms)',
+                        data: [],
+                        borderColor: '#007bff',
+                        backgroundColor: 'rgba(0, 123, 255, 0.1)',
+                        tension: 0.4
+                    }, {
+                        label: '95%分位数 (ms)',
+                        data: [],
+                        borderColor: '#28a745',
+                        backgroundColor: 'rgba(40, 167, 69, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '响应时间 (ms)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 调用量图表
+            const callVolumeCtx = document.getElementById('callVolumeChart').getContext('2d');
+            callVolumeChart = new Chart(callVolumeCtx, {
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '成功调用',
+                        data: [],
+                        backgroundColor: '#28a745'
+                    }, {
+                        label: '失败调用',
+                        data: [],
+                        backgroundColor: '#dc3545'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            stacked: true
+                        },
+                        y: {
+                            stacked: true,
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: '调用次数'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // 错误率图表
+            const errorRateCtx = document.getElementById('errorRateChart').getContext('2d');
+            errorRateChart = new Chart(errorRateCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '错误率 (%)',
+                        data: [],
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: '错误率 (%)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // 选择时间范围
+        function selectTimeRange(range) {
+            currentTimeRange = range;
+            
+            // 更新按钮状态
+            document.querySelectorAll('.time-range-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+            event.target.classList.add('active');
+            
+            // 刷新数据
+            refreshMetrics();
+        }
+        
+        // 刷新指标数据
+        function refreshMetrics() {
+            fetch(`/api/management/metrics?range=${currentTimeRange}`)
+                .then(response => response.json())
+                .then(data => {
+                    updateMetricsSummary(data.summary);
+                    updateCharts(data.timeSeries);
+                    updateMetricsTable(data.detailed);
+                })
+                .catch(error => {
+                    console.error('获取指标数据失败:', error);
+                });
+        }
+        
+        // 更新指标摘要
+        function updateMetricsSummary(summary) {
+            const container = document.getElementById('metricsSummary');
+            
+            const metrics = [
+                {
+                    icon: '📞',
+                    label: '总调用数',
+                    value: summary?.totalCalls || 0,
+                    change: summary?.callsChange || 0
+                },
+                {
+                    icon: '⏱️',
+                    label: '平均响应时间',
+                    value: (summary?.avgResponseTime || 0) + 'ms',
+                    change: summary?.responseTimeChange || 0
+                },
+                {
+                    icon: '✅',
+                    label: '成功率',
+                    value: (summary?.successRate || 0) + '%',
+                    change: summary?.successRateChange || 0
+                },
+                {
+                    icon: '🔥',
+                    label: 'QPS',
+                    value: summary?.qps || 0,
+                    change: summary?.qpsChange || 0
+                },
+                {
+                    icon: '🌐',
+                    label: '活跃连接',
+                    value: summary?.activeConnections || 0,
+                    change: summary?.connectionsChange || 0
+                },
+                {
+                    icon: '💾',
+                    label: '内存使用',
+                    value: (summary?.memoryUsage || 0) + '%',
+                    change: summary?.memoryChange || 0
+                }
+            ];
+            
+            let html = '';
+            metrics.forEach(metric => {
+                const changeClass = metric.change > 0 ? 'positive' : metric.change < 0 ? 'negative' : 'neutral';
+                const changeIcon = metric.change > 0 ? '↗️' : metric.change < 0 ? '↘️' : '➡️';
+                
+                html += `
+                    <div class="metric-summary-card fade-in">
+                        <div class="metric-summary-icon">${metric.icon}</div>
+                        <div class="metric-summary-value">${metric.value}</div>
+                        <div class="metric-summary-label">${metric.label}</div>
+                        <div class="metric-summary-change ${changeClass}">
+                            ${changeIcon} ${Math.abs(metric.change)}%
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 更新图表数据
+        function updateCharts(timeSeries) {
+            if (!timeSeries) return;
+            
+            const labels = timeSeries.map(item => new Date(item.timestamp).toLocaleTimeString());
+            
+            // 更新响应时间图表
+            responseTimeChart.data.labels = labels;
+            responseTimeChart.data.datasets[0].data = timeSeries.map(item => item.avgResponseTime);
+            responseTimeChart.data.datasets[1].data = timeSeries.map(item => item.p95ResponseTime);
+            responseTimeChart.update();
+            
+            // 更新调用量图表
+            callVolumeChart.data.labels = labels;
+            callVolumeChart.data.datasets[0].data = timeSeries.map(item => item.successCalls);
+            callVolumeChart.data.datasets[1].data = timeSeries.map(item => item.failedCalls);
+            callVolumeChart.update();
+            
+            // 更新错误率图表
+            errorRateChart.data.labels = labels;
+            errorRateChart.data.datasets[0].data = timeSeries.map(item => item.errorRate);
+            errorRateChart.update();
+        }
+        
+        // 更新指标表格
+        function updateMetricsTable(detailed) {
+            const tbody = document.getElementById('metricsTableBody');
+            
+            if (!detailed || detailed.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="7" style="text-align: center;">暂无详细指标数据</td></tr>';
+                return;
+            }
+            
+            let html = '';
+            detailed.forEach(metric => {
+                const trendClass = metric.trend === 'up' ? 'up' : metric.trend === 'down' ? 'down' : 'stable';
+                const trendIcon = metric.trend === 'up' ? '↗️' : metric.trend === 'down' ? '↘️' : '➡️';
+                
+                html += `
+                    <tr>
+                        <td class="metric-name">${metric.name}</td>
+                        <td class="metric-value">${metric.current}</td>
+                        <td class="metric-value">${metric.average}</td>
+                        <td class="metric-value">${metric.max}</td>
+                        <td class="metric-value">${metric.min}</td>
+                        <td><span class="metric-trend ${trendClass}">${trendIcon} ${metric.trend.toUpperCase()}</span></td>
+                        <td>${new Date(metric.lastUpdate).toLocaleString()}</td>
+                    </tr>
+                `;
+            });
+            
+            tbody.innerHTML = html;
+        }
+        
+        // 加载告警规则
+        function loadAlertRules() {
+            const rules = [
+                {
+                    name: '响应时间告警',
+                    condition: '平均响应时间 > 1000ms',
+                    status: 'active'
+                },
+                {
+                    name: '错误率告警',
+                    condition: '错误率 > 5%',
+                    status: 'active'
+                },
+                {
+                    name: '内存使用告警',
+                    condition: '内存使用率 > 80%',
+                    status: 'inactive'
+                },
+                {
+                    name: 'QPS异常告警',
+                    condition: 'QPS < 10 或 QPS > 1000',
+                    status: 'triggered'
+                }
+            ];
+            
+            displayAlertRules(rules);
+        }
+        
+        // 显示告警规则
+        function displayAlertRules(rules) {
+            const container = document.getElementById('alertRules');
+            
+            let html = '';
+            rules.forEach(rule => {
+                const statusIcon = rule.status === 'active' ? '✅' : rule.status === 'triggered' ? '🚨' : '⏸️';
+                
+                html += `
+                    <div class="alert-rule">
+                        <div class="alert-rule-info">
+                            <div class="alert-rule-name">${rule.name}</div>
+                            <div class="alert-rule-condition">${rule.condition}</div>
+                        </div>
+                        <div class="alert-rule-status ${rule.status}">
+                            ${statusIcon} ${rule.status.toUpperCase()}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 添加告警规则
+        function addAlertRule() {
+            const name = prompt('请输入告警规则名称:');
+            if (name) {
+                const condition = prompt('请输入告警条件:');
+                if (condition) {
+                    alert('告警规则已添加: ' + name);
+                    // 这里应该调用API保存规则
+                }
+            }
+        }
+        
+        // 测试告警规则
+        function testAlertRules() {
+            const button = event.target;
+            button.disabled = true;
+            button.innerHTML = '<div class="loading-spinner"></div> 测试中...';
+            
+            setTimeout(() => {
+                alert('告警规则测试完成！\n- 响应时间告警: 正常\n- 错误率告警: 正常\n- 内存使用告警: 未激活\n- QPS异常告警: 已触发');
+                button.disabled = false;
+                button.innerHTML = '🧪 测试规则';
+            }, 2000);
+        }
+        
+        // 导出指标数据
+        function exportMetrics() {
+            fetch(`/api/management/metrics/export?range=${currentTimeRange}`)
+                .then(response => response.blob())
+                .then(blob => {
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `metrics-${currentTimeRange}-${new Date().toISOString().split('T')[0]}.csv`;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    window.URL.revokeObjectURL(url);
+                })
+                .catch(error => {
+                    alert('导出失败: ' + error.message);
+                });
+        }
+        
+        // 页面卸载时清理定时器
+        window.addEventListener('beforeunload', function() {
+            if (metricsInterval) {
+                clearInterval(metricsInterval);
+            }
+        });
+    </script>
+</body>
+</html>

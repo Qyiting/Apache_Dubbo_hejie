@@ -92,9 +92,10 @@ public class ClientExample {
     private static void demonstrateSyncCalls(RpcClient rpcClient, byte serializationType) {
         log.info("=== 演示同步调用 ===");
         try {
-            // 创建代理对象
+            // 创建代理对象（自动序列化协商）
             RpcProxyFactory proxyFactory = new RpcProxyFactory(rpcClient);
-            UserService userService = proxyFactory.createProxy(UserService.class, serializationType);
+            UserService userService = proxyFactory.createProxy(UserService.class);
+            log.info("已创建用户服务代理，将自动从服务发现获取序列化类型");
             // 1. 查询用户
             log.info("1. 查询用户ID=1");
             User user = userService.getUserById(1L);

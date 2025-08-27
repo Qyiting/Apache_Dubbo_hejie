@@ -1,7 +1,7 @@
 package com.hejiexmu.rpc.samples.consumer.controller;
 
-import com.hejiexmu.rpc.samples.consumer.entity.User;
-import com.hejiexmu.rpc.samples.consumer.service.UserService;
+import com.hejiexmu.rpc.samples.api.entity.User;
+import com.hejiexmu.rpc.samples.api.service.UserService;
 import com.hejiexmu.rpc.spring.boot.annotation.RpcReference;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -21,8 +21,10 @@ import java.util.Map;
 @RequestMapping("/api/users")
 public class UserController {
     
+
+    
     // 使用@RpcReference注解注入RPC服务
-    @RpcReference(interfaceClass = UserService.class, version = "1.0.0", group = "default", timeout = 5000)
+    @RpcReference(interfaceClass = UserService.class, version = "1.0.0", group = "default")
     private UserService userService;
     
     /**

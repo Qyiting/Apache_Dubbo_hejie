@@ -1,4 +1,4 @@
-package com.hejiexmu.rpc.samples.consumer.entity;
+package com.hejiexmu.rpc.samples.api.entity;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,7 +9,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * 用户实体类 - Consumer端
+ * 用户实体类
  * 
  * @author hejiexmu
  */

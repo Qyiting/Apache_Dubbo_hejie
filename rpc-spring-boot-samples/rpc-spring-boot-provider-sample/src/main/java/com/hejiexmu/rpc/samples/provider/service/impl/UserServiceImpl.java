@@ -1,7 +1,7 @@
 package com.hejiexmu.rpc.samples.provider.service.impl;
 
-import com.hejiexmu.rpc.samples.provider.entity.User;
-import com.hejiexmu.rpc.samples.provider.service.UserService;
+import com.hejiexmu.rpc.samples.api.entity.User;
+import com.hejiexmu.rpc.samples.api.service.UserService;
 import com.hejiexmu.rpc.spring.boot.annotation.RpcService;
 import jakarta.annotation.PostConstruct;
 import lombok.extern.slf4j.Slf4j;

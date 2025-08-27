@@ -18,6 +18,7 @@
     <description>Spring Boot integration samples for Simple RPC Framework</description>
     
     <modules>
+        <module>rpc-spring-boot-api</module>
         <module>rpc-spring-boot-provider-sample</module>
         <module>rpc-spring-boot-consumer-sample</module>
     </modules>

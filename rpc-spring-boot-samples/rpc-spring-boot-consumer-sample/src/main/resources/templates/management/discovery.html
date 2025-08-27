@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务发现 - RPC Consumer</title>
+    <link rel="stylesheet" href="/css/management.css">
+    <style>
+        .service-grid {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .service-list {
+            border-right: 2px solid #eee;
+            padding-right: 20px;
+        }
+        
+        .service-item {
+            padding: 15px;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: white;
+        }
+        
+        .service-item:hover {
+            background: #f8f9fa;
+            border-color: #007bff;
+            transform: translateX(5px);
+        }
+        
+        .service-item.active {
+            background: #e3f2fd;
+            border-color: #007bff;
+            box-shadow: 0 2px 8px rgba(0,123,255,0.2);
+        }
+        
+        .service-name {
+            font-weight: bold;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .service-info {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .method-panel {
+            padding-left: 20px;
+        }
+        
+        .method-list {
+            display: none;
+        }
+        
+        .method-list.active {
+            display: block;
+        }
+        
+        .method-item {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .method-item:hover {
+            background: #f8f9fa;
+            border-color: #28a745;
+        }
+        
+        .method-signature {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #495057;
+            margin-bottom: 5px;
+        }
+        
+        .method-params {
+            font-size: 11px;
+            color: #666;
+        }
+        
+        .invoke-form {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .invoke-form.active {
+            display: block;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #495057;
+        }
+        
+        .form-control {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        
+        .form-control:focus {
+            outline: none;
+            border-color: #007bff;
+            box-shadow: 0 0 0 2px rgba(0,123,255,0.25);
+        }
+        
+        .param-input {
+            margin-bottom: 10px;
+        }
+        
+        .result-panel {
+            background: white;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            margin-top: 15px;
+            display: none;
+        }
+        
+        .result-panel.active {
+            display: block;
+        }
+        
+        .result-success {
+            border-left: 4px solid #28a745;
+            background: #d4edda;
+        }
+        
+        .result-error {
+            border-left: 4px solid #dc3545;
+            background: #f8d7da;
+        }
+        
+        .result-content {
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🔍 服务发现</h1>
+            <p>浏览和测试可用的RPC服务</p>
+        </div>
+        
+        <div class="nav">
+            <a href="/" class="nav-btn">🏠 首页</a>
+            <a href="/management/overview" class="nav-btn">📊 概览</a>
+            <a href="/management/discovery" class="nav-btn active">🔍 服务发现</a>
+            <a href="/management/health" class="nav-btn">💚 健康检查</a>
+            <a href="/management/metrics" class="nav-btn">📈 指标监控</a>
+        </div>
+        
+        <div class="content">
+            <div class="service-grid">
+                <div class="service-list">
+                    <h3>📋 可用服务</h3>
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="refreshServices()">🔄 刷新服务</button>
+                        <button class="btn btn-secondary" onclick="clearResults()">🗑️ 清空结果</button>
+                    </div>
+                    <div id="serviceList" class="fade-in">
+                        <!-- 服务列表将通过JavaScript动态加载 -->
+                    </div>
+                </div>
+                
+                <div class="method-panel">
+                    <h3>🛠️ 方法调用</h3>
+                    <div id="methodContainer">
+                        <div class="alert alert-info">
+                            <strong>💡 提示：</strong>请从左侧选择一个服务来查看其可用方法
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let currentService = null;
+        let currentMethod = null;
+        
+        // 页面加载时获取服务列表
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshServices();
+        });
+        
+        // 刷新服务列表
+        function refreshServices() {
+            fetch('/api/management/services')
+                .then(response => response.json())
+                .then(services => {
+                    displayServices(services);
+                })
+                .catch(error => {
+                    console.error('获取服务列表失败:', error);
+                    document.getElementById('serviceList').innerHTML = 
+                        '<div class="alert alert-danger">❌ 获取服务列表失败: ' + error.message + '</div>';
+                });
+        }
+        
+        // 显示服务列表
+        function displayServices(services) {
+            const serviceList = document.getElementById('serviceList');
+            if (services.length === 0) {
+                serviceList.innerHTML = '<div class="alert alert-warning">⚠️ 暂无可用服务</div>';
+                return;
+            }
+            
+            let html = '';
+            services.forEach(service => {
+                html += `
+                    <div class="service-item" onclick="selectService('${service.name}')">
+                        <div class="service-name">📦 ${service.name}</div>
+                        <div class="service-info">
+                            <span>🌐 实例数: ${service.instanceCount || 0}</span>
+                            <span style="margin-left: 15px;">📝 方法数: ${service.methodCount || 0}</span>
+                        </div>
+                    </div>
+                `;
+            });
+            serviceList.innerHTML = html;
+        }
+        
+        // 选择服务
+        function selectService(serviceName) {
+            currentService = serviceName;
+            
+            // 更新UI状态
+            document.querySelectorAll('.service-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.service-item').classList.add('active');
+            
+            // 获取服务方法
+            fetch(`/api/management/services/${serviceName}/methods`)
+                .then(response => response.json())
+                .then(methods => {
+                    displayMethods(serviceName, methods);
+                })
+                .catch(error => {
+                    console.error('获取方法列表失败:', error);
+                    document.getElementById('methodContainer').innerHTML = 
+                        '<div class="alert alert-danger">❌ 获取方法列表失败: ' + error.message + '</div>';
+                });
+        }
+        
+        // 显示方法列表
+        function displayMethods(serviceName, methods) {
+            const container = document.getElementById('methodContainer');
+            
+            if (methods.length === 0) {
+                container.innerHTML = '<div class="alert alert-warning">⚠️ 该服务暂无可用方法</div>';
+                return;
+            }
+            
+            let html = `<h4>🔧 ${serviceName} 的方法</h4>`;
+            methods.forEach(method => {
+                html += `
+                    <div class="method-item" onclick="selectMethod('${serviceName}', '${method.name}', '${JSON.stringify(method.parameters).replace(/"/g, '&quot;')}')">
+                        <div class="method-signature">${method.returnType} ${method.name}(${method.parameters.map(p => p.type + ' ' + p.name).join(', ')})</div>
+                        <div class="method-params">📋 参数: ${method.parameters.length} 个</div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 选择方法
+        function selectMethod(serviceName, methodName, parametersJson) {
+            currentMethod = methodName;
+            const parameters = JSON.parse(parametersJson.replace(/&quot;/g, '"'));
+            
+            // 更新UI状态
+            document.querySelectorAll('.method-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            event.target.closest('.method-item').classList.add('active');
+            
+            // 显示调用表单
+            displayInvokeForm(serviceName, methodName, parameters);
+        }
+        
+        // 显示调用表单
+        function displayInvokeForm(serviceName, methodName, parameters) {
+            let html = `
+                <div class="invoke-form active">
+                    <h5>🚀 调用 ${serviceName}.${methodName}</h5>
+                    <form onsubmit="invokeMethod(event, '${serviceName}', '${methodName}')">
+            `;
+            
+            parameters.forEach((param, index) => {
+                html += `
+                    <div class="form-group">
+                        <label class="form-label">${param.name} (${param.type})</label>
+                        <input type="text" class="form-control param-input" 
+                               name="param_${index}" 
+                               placeholder="请输入${param.name}的值" 
+                               ${param.type.includes('String') ? '' : 'pattern="[0-9]*"'}>
+                    </div>
+                `;
+            });
+            
+            html += `
+                        <div class="btn-group">
+                            <button type="submit" class="btn btn-success">🚀 执行调用</button>
+                            <button type="button" class="btn btn-warning" onclick="clearForm()">🔄 重置表单</button>
+                        </div>
+                    </form>
+                </div>
+                <div id="resultPanel" class="result-panel"></div>
+            `;
+            
+            document.getElementById('methodContainer').innerHTML += html;
+        }
+        
+        // 调用方法
+        function invokeMethod(event, serviceName, methodName) {
+            event.preventDefault();
+            
+            const formData = new FormData(event.target);
+            const params = [];
+            
+            // 收集参数
+            for (let [key, value] of formData.entries()) {
+                if (key.startsWith('param_')) {
+                    params.push(value);
+                }
+            }
+            
+            // 显示加载状态
+            const resultPanel = document.getElementById('resultPanel');
+            resultPanel.className = 'result-panel active';
+            resultPanel.innerHTML = '<div class="loading-spinner"></div> 正在调用服务...';
+            
+            // 发送调用请求
+            fetch('/api/management/invoke', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    serviceName: serviceName,
+                    methodName: methodName,
+                    parameters: params
+                })
+            })
+            .then(response => response.json())
+            .then(result => {
+                displayResult(result);
+            })
+            .catch(error => {
+                displayResult({
+                    success: false,
+                    error: error.message,
+                    timestamp: new Date().toISOString()
+                });
+            });
+        }
+        
+        // 显示调用结果
+        function displayResult(result) {
+            const resultPanel = document.getElementById('resultPanel');
+            resultPanel.className = `result-panel active ${result.success ? 'result-success' : 'result-error'}`;
+            
+            let html = `
+                <h5>${result.success ? '✅ 调用成功' : '❌ 调用失败'}</h5>
+                <div class="result-content">
+            `;
+            
+            if (result.success) {
+                html += `返回值: ${JSON.stringify(result.data, null, 2)}`;
+                if (result.duration) {
+                    html += `\n\n执行时间: ${result.duration}ms`;
+                }
+            } else {
+                html += `错误信息: ${result.error || '未知错误'}`;
+            }
+            
+            html += `\n\n时间戳: ${result.timestamp || new Date().toISOString()}`;
+            html += '</div>';
+            
+            resultPanel.innerHTML = html;
+        }
+        
+        // 清空表单
+        function clearForm() {
+            document.querySelectorAll('.param-input').forEach(input => {
+                input.value = '';
+            });
+        }
+        
+        // 清空结果
+        function clearResults() {
+            const resultPanel = document.getElementById('resultPanel');
+            if (resultPanel) {
+                resultPanel.className = 'result-panel';
+                resultPanel.innerHTML = '';
+            }
+        }
+    </script>
+</body>
+</html>

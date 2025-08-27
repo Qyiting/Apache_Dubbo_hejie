@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系统概览 - RPC Consumer</title>
+    <link rel="stylesheet" href="/css/management.css">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📊 系统概览</h1>
+            <p>RPC Consumer 服务监控面板</p>
+        </div>
+        
+        <div class="nav">
+            <a href="/" class="nav-btn">🏠 首页</a>
+            <a href="/management/overview" class="nav-btn active">📊 概览</a>
+            <a href="/management/discovery" class="nav-btn">🔍 服务发现</a>
+            <a href="/management/health" class="nav-btn">💚 健康检查</a>
+            <a href="/management/metrics" class="nav-btn">📈 指标监控</a>
+        </div>
+        
+        <div class="content">
+            <!-- 关键指标卡片 -->
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div class="metric-title">🌐 可用服务数</div>
+                    <div class="metric-value" id="serviceCount">-</div>
+                    <div class="metric-change">实时更新</div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-title">🔗 活跃连接数</div>
+                    <div class="metric-value" id="connectionCount">-</div>
+                    <div class="metric-change">当前连接</div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-title">📞 总调用次数</div>
+                    <div class="metric-value" id="totalCalls">-</div>
+                    <div class="metric-change">累计统计</div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-title">⚡ 平均响应时间</div>
+                    <div class="metric-value" id="avgResponseTime">-</div>
+                    <div class="metric-change">毫秒</div>
+                </div>
+            </div>
+            
+            <!-- 服务实例状态 -->
+            <div class="section">
+                <h3>🏢 服务实例状态</h3>
+                <div class="btn-group">
+                    <button class="btn btn-primary" onclick="refreshInstances()">🔄 刷新状态</button>
+                    <button class="btn btn-success" onclick="testAllInstances()">🧪 测试所有实例</button>
+                </div>
+                <div id="instancesContainer" class="service-instances fade-in">
+                    <!-- 服务实例将通过JavaScript动态加载 -->
+                </div>
+            </div>
+            
+            <!-- 最近调用历史 -->
+            <div class="section">
+                <h3>📋 最近调用历史</h3>
+                <div class="btn-group">
+                    <button class="btn btn-secondary" onclick="refreshCallHistory()">🔄 刷新历史</button>
+                    <button class="btn btn-warning" onclick="clearCallHistory()">🗑️ 清空历史</button>
+                </div>
+                <div id="callHistoryContainer" class="call-history">
+                    <!-- 调用历史将通过JavaScript动态加载 -->
+                </div>
+            </div>
+            
+            <!-- 系统信息 -->
+            <div class="section">
+                <h3>💻 系统信息</h3>
+                <div class="config-table-container">
+                    <table class="config-table">
+                        <thead>
+                            <tr>
+                                <th>配置项</th>
+                                <th>当前值</th>
+                                <th>说明</th>
+                            </tr>
+                        </thead>
+                        <tbody id="systemInfoTable">
+                            <!-- 系统信息将通过JavaScript动态加载 -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- 内存使用情况 -->
+            <div class="section">
+                <h3>🧠 内存使用情况</h3>
+                <div class="memory-usage">
+                    <div class="memory-bar">
+                        <div class="memory-used" id="memoryUsed" style="width: 0%;">已使用: 0MB</div>
+                        <div class="memory-free" id="memoryFree" style="width: 100%;">可用: 0MB</div>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; color: #666;">
+                        <span>总内存: <span id="totalMemory">0MB</span></span>
+                        <span style="margin-left: 20px;">使用率: <span id="memoryUsage">0%</span></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 页面加载时初始化数据
+        document.addEventListener('DOMContentLoaded', function() {
+            refreshOverview();
+            refreshInstances();
+            refreshCallHistory();
+            loadSystemInfo();
+            updateMemoryUsage();
+            
+            // 设置定时刷新
+            setInterval(refreshOverview, 30000); // 30秒刷新一次概览数据
+            setInterval(updateMemoryUsage, 10000); // 10秒刷新一次内存使用情况
+        });
+        
+        // 刷新概览数据
+        function refreshOverview() {
+            fetch('/api/management/overview')
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById('serviceCount').textContent = data.serviceCount || 0;
+                    document.getElementById('connectionCount').textContent = data.connectionCount || 0;
+                    document.getElementById('totalCalls').textContent = data.totalCalls || 0;
+                    document.getElementById('avgResponseTime').textContent = (data.avgResponseTime || 0) + 'ms';
+                })
+                .catch(error => {
+                    console.error('获取概览数据失败:', error);
+                });
+        }
+        
+        // 刷新服务实例
+        function refreshInstances() {
+            fetch('/api/management/instances')
+                .then(response => response.json())
+                .then(instances => {
+                    displayInstances(instances);
+                })
+                .catch(error => {
+                    console.error('获取实例列表失败:', error);
+                    document.getElementById('instancesContainer').innerHTML = 
+                        '<div class="alert alert-danger">❌ 获取实例列表失败: ' + error.message + '</div>';
+                });
+        }
+        
+        // 显示服务实例
+        function displayInstances(instances) {
+            const container = document.getElementById('instancesContainer');
+            
+            if (instances.length === 0) {
+                container.innerHTML = '<div class="alert alert-warning">⚠️ 暂无可用服务实例</div>';
+                return;
+            }
+            
+            let html = '';
+            instances.forEach(instance => {
+                const statusClass = instance.healthy ? 'healthy' : 'unhealthy';
+                const statusIcon = instance.healthy ? '✅' : '❌';
+                
+                html += `
+                    <div class="instance-card">
+                        <div class="instance-status ${statusClass}">${statusIcon} ${instance.healthy ? 'HEALTHY' : 'UNHEALTHY'}</div>
+                        <div class="instance-address">${instance.address}:${instance.port}</div>
+                        <div class="instance-meta">
+                            <div>🏷️ 服务: ${instance.serviceName}</div>
+                            <div>⏰ 注册时间: ${new Date(instance.registerTime).toLocaleString()}</div>
+                            <div>📊 权重: ${instance.weight || 1}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 测试所有实例
+        function testAllInstances() {
+            const button = event.target;
+            button.disabled = true;
+            button.innerHTML = '<div class="loading-spinner"></div> 测试中...';
+            
+            fetch('/api/management/test-instances', { method: 'POST' })
+                .then(response => response.json())
+                .then(result => {
+                    alert(`测试完成！\n健康实例: ${result.healthy}\n异常实例: ${result.unhealthy}`);
+                    refreshInstances();
+                })
+                .catch(error => {
+                    alert('测试失败: ' + error.message);
+                })
+                .finally(() => {
+                    button.disabled = false;
+                    button.innerHTML = '🧪 测试所有实例';
+                });
+        }
+        
+        // 刷新调用历史
+        function refreshCallHistory() {
+            fetch('/api/management/call-history')
+                .then(response => response.json())
+                .then(history => {
+                    displayCallHistory(history);
+                })
+                .catch(error => {
+                    console.error('获取调用历史失败:', error);
+                    document.getElementById('callHistoryContainer').innerHTML = 
+                        '<div class="alert alert-danger">❌ 获取调用历史失败: ' + error.message + '</div>';
+                });
+        }
+        
+        // 显示调用历史
+        function displayCallHistory(history) {
+            const container = document.getElementById('callHistoryContainer');
+            
+            if (history.length === 0) {
+                container.innerHTML = '<div class="alert alert-info">📝 暂无调用历史记录</div>';
+                return;
+            }
+            
+            let html = '';
+            history.forEach(call => {
+                const statusClass = call.success ? 'success' : 'error';
+                const statusIcon = call.success ? '✅' : '❌';
+                
+                html += `
+                    <div class="call-item">
+                        <div>
+                            <div class="call-method">${call.serviceName}.${call.methodName}</div>
+                            <div class="call-time">${new Date(call.timestamp).toLocaleString()}</div>
+                        </div>
+                        <div>
+                            <div class="call-status ${statusClass}">${statusIcon} ${call.success ? 'SUCCESS' : 'ERROR'}</div>
+                            <div class="call-duration">${call.duration}ms</div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+        
+        // 清空调用历史
+        function clearCallHistory() {
+            if (confirm('确定要清空调用历史吗？')) {
+                fetch('/api/management/call-history', { method: 'DELETE' })
+                    .then(() => {
+                        refreshCallHistory();
+                        alert('调用历史已清空');
+                    })
+                    .catch(error => {
+                        alert('清空失败: ' + error.message);
+                    });
+            }
+        }
+        
+        // 加载系统信息
+        function loadSystemInfo() {
+            const systemInfo = [
+                { key: '应用名称', value: 'RPC Consumer Sample', desc: '当前应用标识' },
+                { key: '服务端口', value: '8071', desc: 'HTTP服务监听端口' },
+                { key: '注册中心', value: 'ZooKeeper', desc: '服务发现组件' },
+                { key: '注册中心地址', value: 'localhost:2181', desc: 'ZooKeeper连接地址' },
+                { key: '连接超时', value: '5000ms', desc: 'RPC调用超时时间' },
+                { key: '重试次数', value: '3', desc: '调用失败重试次数' },
+                { key: '连接池大小', value: '10', desc: '最大连接池大小' },
+                { key: 'Java版本', value: getJavaVersion(), desc: 'JVM运行时版本' }
+            ];
+            
+            const tbody = document.getElementById('systemInfoTable');
+            let html = '';
+            systemInfo.forEach(info => {
+                html += `
+                    <tr>
+                        <td>${info.key}</td>
+                        <td><span class="config-value">${info.value}</span></td>
+                        <td>${info.desc}</td>
+                    </tr>
+                `;
+            });
+            tbody.innerHTML = html;
+        }
+        
+        // 获取Java版本（模拟）
+        function getJavaVersion() {
+            return navigator.userAgent.includes('Java') ? 'Java 11+' : 'Java 8+';
+        }
+        
+        // 更新内存使用情况
+        function updateMemoryUsage() {
+            // 模拟内存使用数据（实际应用中应从后端API获取）
+            const totalMemory = 512; // MB
+            const usedMemory = Math.floor(Math.random() * 300) + 100; // 100-400MB
+            const freeMemory = totalMemory - usedMemory;
+            const usagePercent = Math.round((usedMemory / totalMemory) * 100);
+            
+            document.getElementById('memoryUsed').style.width = usagePercent + '%';
+            document.getElementById('memoryUsed').textContent = `已使用: ${usedMemory}MB`;
+            document.getElementById('memoryFree').style.width = (100 - usagePercent) + '%';
+            document.getElementById('memoryFree').textContent = `可用: ${freeMemory}MB`;
+            document.getElementById('totalMemory').textContent = totalMemory + 'MB';
+            document.getElementById('memoryUsage').textContent = usagePercent + '%';
+        }
+    </script>
+</body>
+</html>

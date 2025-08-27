@@ -157,7 +157,8 @@ public class DxClientConfig {
     public DxClientConfiguration dxClientConfiguration() {
         return DxClientConfiguration.builder()
             .registryAddress("127.0.0.1:2181")
-            .serializer(SerializerType.KRYO)
+            // 注意：不再需要配置序列化器，框架会自动从服务发现获取
+            // .serializer(SerializerType.KRYO)  // 已废弃
             .loadBalancer(LoadBalancerType.CONSISTENT_HASH)
             .timeout(5000)
             .retryCount(3)
@@ -254,13 +255,28 @@ distributedx:
     registry:
       address: 127.0.0.1:2181
       timeout: 5000
-    serializer: kryo
+    # 注意：客户端不再需要配置序列化器，框架会自动从服务发现获取
+    # serializer: kryo  # 已废弃，框架支持自动序列化协商
     load-balancer: consistent_hash  # random, round_robin, consistent_hash
     timeout: 5000
     retry-count: 3
     connection-pool:
       max-connections: 50
       max-idle-time: 300000
+```
+
+### 3. 自动序列化协商（推荐）
+
+框架现在支持智能序列化协商机制：
+
+- **服务端**：只需配置序列化器类型，框架会自动注册到服务发现
+- **客户端**：无需配置序列化器，框架会自动从服务发现获取服务端的序列化类型
+- **协商机制**：如果客户端和服务端序列化类型不匹配，框架会自动尝试多种序列化方式
+
+```java
+// 客户端代码 - 无需关心序列化类型
+@DxReference(serviceName = "userService", version = "1.0")
+private UserService userService; // 框架会自动处理序列化协商
 ```
 
 ## 高级特性

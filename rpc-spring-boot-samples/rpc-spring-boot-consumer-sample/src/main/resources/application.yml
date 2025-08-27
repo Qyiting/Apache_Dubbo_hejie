@@ -1,6 +1,6 @@
 # RPC Consumer Sample Configuration
 server:
-  port: 8082
+  port: 8071
   servlet:
     context-path: /
 
@@ -24,32 +24,15 @@ rpc:
   
   # Consumer Configuration
   consumer:
+    enabled: true
     timeout: 5000
     retry-count: 3
     connection-pool-size: 10
   
-  # Provider Configuration (not used in consumer, but required for completeness)
-  provider:
-    host: localhost
-    port: 8083
-    serializer: kryo
-    worker-threads: 10
+  # Provider Configuration (not used in consumer)
+  # 注意：消费者不再需要配置序列化器，框架会自动从服务发现获取
 
-# Logging Configuration
-logging:
-  level:
-    root: INFO
-    com.hejiexmu.rpc: DEBUG
-    com.rpc: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-  file:
-    name: logs/rpc-consumer.log
-  logback:
-    rollingpolicy:
-      max-file-size: 100MB
-      max-history: 30
+# Logging Configuration is now handled by logback-spring.xml
 
 # Management Endpoints
 management:

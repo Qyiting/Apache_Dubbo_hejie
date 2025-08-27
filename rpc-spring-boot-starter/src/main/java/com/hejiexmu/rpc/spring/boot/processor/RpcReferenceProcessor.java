@@ -4,6 +4,7 @@ import com.hejiexmu.rpc.spring.boot.annotation.RpcReference;
 import com.hejiexmu.rpc.spring.boot.properties.RpcProperties;
 import com.rpc.client.RpcClient;
 import com.rpc.client.factory.RpcProxyFactory;
+import com.rpc.core.serviceinfo.ServiceInfo;
 import com.rpc.serialization.Serializer;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeansException;
@@ -137,8 +138,8 @@ public class RpcReferenceProcessor implements BeanPostProcessor {
         long timeout = rpcReference.timeout() > 0 ? 
                 rpcReference.timeout() : rpcProperties.getConsumer().getTimeout();
         
-        // 获取序列化类型
-        byte serializationType = rpcProperties.getProvider().getSerializer();
+        // 从服务发现中获取序列化类型
+        byte serializationType = getSerializationTypeFromServiceDiscovery(interfaceClass.getName(), version, group);
         
         // 设置代理工厂参数
         rpcProxyFactory.setVersion(version);
@@ -150,6 +151,33 @@ public class RpcReferenceProcessor implements BeanPostProcessor {
             return rpcProxyFactory.createAsyncProxy(interfaceClass, version, group, timeout, serializationType);
         } else {
             return rpcProxyFactory.createProxy(interfaceClass, version, group, timeout, serializationType);
+        }
+    }
+    
+    /**
+     * 从服务发现中获取序列化类型
+     */
+    private byte getSerializationTypeFromServiceDiscovery(String serviceName, String version, String group) {
+        try {
+            // 从服务注册中心发现服务
+            java.util.List<ServiceInfo> serviceInfos = rpcClient.getServiceRegistry().discover(serviceName, version, group);
+            
+            if (serviceInfos != null && !serviceInfos.isEmpty()) {
+                // 获取第一个可用服务的序列化类型
+                ServiceInfo serviceInfo = serviceInfos.get(0);
+                byte serializationType = serviceInfo.getSerializerType();
+                log.debug("从服务发现获取序列化类型：服务={}，版本={}，分组={}，序列化类型={}", 
+                         serviceName, version, group, serializationType);
+                return serializationType;
+            } else {
+                log.warn("未发现服务实例：服务={}，版本={}，分组={}，使用默认序列化类型KRYO", 
+                        serviceName, version, group);
+                return Serializer.SerializerType.KRYO; // 默认使用KRYO
+            }
+        } catch (Exception e) {
+            log.error("从服务发现获取序列化类型失败：服务={}，版本={}，分组={}，使用默认序列化类型KRYO", 
+                     serviceName, version, group, e);
+            return Serializer.SerializerType.KRYO; // 出错时使用默认序列化类型
         }
     }
     

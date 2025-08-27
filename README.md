@@ -171,11 +171,17 @@ mvn spring-boot:run -Dspring-boot.run.profiles=8084  # 端口8084
 
 ### 2. 序列化协议
 
-支持多种序列化协议，可根据性能需求选择：
+支持多种序列化协议，并提供智能协商机制：
 
 - **JSON**：可读性好，调试方便
 - **Kryo**：高性能二进制序列化
 - **Hessian**：跨语言二进制序列化
+
+**智能序列化协商**：
+- 服务端序列化类型自动注册到服务发现
+- 客户端自动获取服务端序列化类型
+- 类型不匹配时自动协商最佳序列化方式
+- 无需手动配置客户端序列化器
 
 ### 3. 服务治理
 
@@ -343,6 +349,7 @@ public class ServerExample {
 
 #### 2. 配置文件 (application.yml)
 
+**服务提供者配置：**
 ```yaml
 rpc:
   registry:
@@ -352,10 +359,20 @@ rpc:
     host: 127.0.0.1
     port: 9081
     enabled: true
+    serializer: kryo  # 配置序列化器类型
+```
+
+**服务消费者配置：**
+```yaml
+rpc:
+  registry:
+    address: 127.0.0.1:2181
+    type: zookeeper
   consumer:
     timeout: 15000
     max-connections: 20
     load-balancer: random
+    # 注意：消费者不再需要配置序列化器，框架会自动从服务发现获取
 ```
 
 #### 3. 服务提供者实现
@@ -446,9 +463,9 @@ public class ClientExample {
             // 3. 创建RPC客户端
             RpcClient rpcClient = new RpcClient(serviceRegistry, loadBalancer, 15000, 20);
             
-            // 4. 创建服务代理
+            // 4. 创建服务代理（框架会自动从服务发现获取序列化类型）
             RpcProxyFactory proxyFactory = new RpcProxyFactory(rpcClient);
-            UserService userService = proxyFactory.createProxy(UserService.class, (byte) 1);
+            UserService userService = proxyFactory.createProxy(UserService.class);
             
             // 5. 调用远程服务
             User user = userService.getUserById(1L);

@@ -2,7 +2,9 @@ package com.hejiexmu.rpc.spring.boot.config;
 
 import com.rpc.client.RpcClient;
 import com.rpc.client.factory.RpcProxyFactory;
+import com.rpc.core.serviceinfo.ServiceInfo;
 import com.rpc.registry.ServiceRegistry;
+import com.rpc.serialization.Serializer;
 import com.rpc.server.RpcServer;
 import com.rpc.server.provider.ServiceProvider;
 import com.hejiexmu.rpc.spring.boot.properties.RpcProperties;
@@ -64,6 +66,7 @@ public class RpcCompatibilityConfiguration {
     public static class RpcProgrammaticHelper {
         private final ServiceRegistry serviceRegistry;
         private final RpcProperties rpcProperties;
+        private volatile RpcClient sharedRpcClient; // 共享的RpcClient实例
         
         public RpcProgrammaticHelper(ServiceRegistry serviceRegistry, RpcProperties rpcProperties) {
             this.serviceRegistry = serviceRegistry;
@@ -85,6 +88,22 @@ public class RpcCompatibilityConfiguration {
                 consumerConfig.getTimeout(),
                 consumerConfig.getConnectionPoolSize()
             );
+        }
+        
+        /**
+         * 获取共享的RPC客户端实例
+         * 
+         * @return 共享的RPC客户端实例
+         */
+        private RpcClient getSharedRpcClient() {
+            if (sharedRpcClient == null) {
+                synchronized (this) {
+                    if (sharedRpcClient == null) {
+                        sharedRpcClient = createRpcClient();
+                    }
+                }
+            }
+            return sharedRpcClient;
         }
         
         /**
@@ -110,9 +129,9 @@ public class RpcCompatibilityConfiguration {
          * @return 服务代理对象
          */
         public <T> T createServiceProxy(Class<T> interfaceClass) {
-            RpcClient rpcClient = createRpcClient();
+            RpcClient rpcClient = getSharedRpcClient();
             RpcProxyFactory proxyFactory = new RpcProxyFactory(rpcClient);
-            byte serializationType = rpcProperties.getProvider().getSerializer();
+            byte serializationType = getSerializationTypeFromServiceDiscovery(rpcClient, interfaceClass.getName(), "1.0.0", "default");
             return proxyFactory.createProxy(interfaceClass, serializationType);
         }
         
@@ -126,9 +145,9 @@ public class RpcCompatibilityConfiguration {
          * @return 服务代理对象
          */
         public <T> T createServiceProxy(Class<T> interfaceClass, String version, String group) {
-            RpcClient rpcClient = createRpcClient();
+            RpcClient rpcClient = getSharedRpcClient();
             RpcProxyFactory proxyFactory = new RpcProxyFactory(rpcClient);
-            byte serializationType = rpcProperties.getProvider().getSerializer();
+            byte serializationType = getSerializationTypeFromServiceDiscovery(rpcClient, interfaceClass.getName(), version, group);
             return proxyFactory.createProxy(interfaceClass, version, group, serializationType);
         }
         
@@ -149,5 +168,38 @@ public class RpcCompatibilityConfiguration {
         public RpcProperties getRpcProperties() {
             return rpcProperties;
         }
+        
+        /**
+          * 从服务发现中获取序列化类型
+          * 
+          * @param rpcClient RPC客户端
+          * @param serviceName 服务名称
+          * @param version 服务版本
+          * @param group 服务分组
+          * @return 序列化类型
+          */
+         private byte getSerializationTypeFromServiceDiscovery(RpcClient rpcClient, String serviceName, String version, String group) {
+             try {
+                 // 从服务注册中心发现服务
+                 java.util.List<ServiceInfo> serviceInfos = rpcClient.getServiceRegistry().discover(serviceName, version, group);
+                 
+                 if (serviceInfos != null && !serviceInfos.isEmpty()) {
+                     // 获取第一个可用服务的序列化类型
+                     ServiceInfo serviceInfo = serviceInfos.get(0);
+                     byte serializationType = serviceInfo.getSerializerType();
+                     log.debug("从服务发现获取序列化类型：服务={}，版本={}，分组={}，序列化类型={}", 
+                              serviceName, version, group, serializationType);
+                     return serializationType;
+                 } else {
+                     log.warn("未发现服务实例：服务={}，版本={}，分组={}，使用默认序列化类型KRYO", 
+                             serviceName, version, group);
+                     return Serializer.SerializerType.KRYO; // 默认使用KRYO
+                 }
+             } catch (Exception e) {
+                 log.error("从服务发现获取序列化类型失败：服务={}，版本={}，分组={}，使用默认序列化类型KRYO", 
+                          serviceName, version, group, e);
+                 return Serializer.SerializerType.KRYO; // 出错时使用默认序列化类型
+             }
+         }
     }
 }
