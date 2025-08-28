@@ -1,5 +1,6 @@
 package com.hejiexmu.rpc.samples.provider.controller;
 
+import com.rpc.registry.zookeeper.ZookeeperServiceRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -713,9 +714,7 @@ public class ManagementController {
             return "Unknown";
         }
     }
-    
-    // 重复的getUptime()方法已删除，使用上面的版本
-    
+
     /**
      * 发现服务的所有实例（包括所有版本和组）
      */
@@ -723,9 +722,9 @@ public class ManagementController {
         List<ServiceInfo> allInstances = new ArrayList<>();
         try {
             // 使用ZookeeperServiceRegistry的getAllServiceInstances方法来递归发现所有实例
-            if (serviceRegistry != null && serviceRegistry instanceof com.rpc.registry.zookeeper.ZookeeperServiceRegistry) {
-                com.rpc.registry.zookeeper.ZookeeperServiceRegistry zkRegistry = 
-                    (com.rpc.registry.zookeeper.ZookeeperServiceRegistry) serviceRegistry;
+            if (serviceRegistry != null && serviceRegistry instanceof ZookeeperServiceRegistry) {
+                ZookeeperServiceRegistry zkRegistry =
+                    (ZookeeperServiceRegistry) serviceRegistry;
                 
                 // 调用getAllServiceInstances获取所有服务实例
                 List<ServiceInfo> allServiceInstances = zkRegistry.getAllServiceInstances();

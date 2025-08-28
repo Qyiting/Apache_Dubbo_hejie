@@ -20,9 +20,7 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/users")
 public class UserController {
-    
 
-    
     // 使用@RpcReference注解注入RPC服务
     @RpcReference(interfaceClass = UserService.class, version = "1.0.0", group = "default")
     private UserService userService;

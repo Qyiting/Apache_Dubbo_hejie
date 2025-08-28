@@ -27,8 +27,6 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequestMapping("/api/management")
 @CrossOrigin(origins = "*")
 public class ManagementController {
-    
-
 
     @Autowired
     private Environment environment;
