@@ -39,6 +39,9 @@ public class ManagementController {
     
     private final ObjectMapper objectMapper = new ObjectMapper();
     
+    // 服务启动时间
+    private final long startTimeMillis = System.currentTimeMillis();
+    
     // 缓存已发现的服务信息
     private final Map<String, List<ServiceInfo>> serviceCache = new ConcurrentHashMap<>();
     
@@ -57,7 +60,8 @@ public class ManagementController {
         overview.put("version", "1.0.0");
         overview.put("status", "RUNNING");
         overview.put("startTime", getStartTime());
-        overview.put("uptime", getUptime());
+        overview.put("uptime", getFormattedUptime());
+        overview.put("uptimeMillis", getUptime());
         
         // 端口信息
         Map<String, Object> ports = new HashMap<>();
@@ -290,14 +294,51 @@ public class ManagementController {
         if (serviceRegistry != null) {
             discoveryStatus.put("status", "UP");
             discoveryStatus.put("type", environment.getProperty("rpc.registry.type", "zookeeper"));
+            discoveryStatus.put("address", environment.getProperty("rpc.registry.address", "localhost:2181"));
         } else {
             discoveryStatus.put("status", "DOWN");
             discoveryStatus.put("error", "Service Registry Not Available");
         }
         health.put("serviceRegistry", discoveryStatus);
         
+        // RPC客户端统计信息
+        Map<String, Object> rpcStats = new HashMap<>();
+        try {
+            if (rpcHelper != null) {
+                // 获取缓存的服务数量
+                rpcStats.put("cachedServices", serviceCache.size());
+                rpcStats.put("cachedMethods", methodCache.size());
+                rpcStats.put("status", "RPC Helper Available");
+            } else {
+                rpcStats.put("status", "RPC Helper Not Available");
+                rpcStats.put("cachedServices", 0);
+                rpcStats.put("cachedMethods", 0);
+            }
+        } catch (Exception e) {
+            log.error("获取RPC客户端统计信息失败", e);
+            rpcStats.put("error", e.getMessage());
+            rpcStats.put("status", "ERROR");
+        }
+        health.put("rpcClient", rpcStats);
+        
+        // 线程信息
+        Map<String, Object> threadInfo = new HashMap<>();
+        threadInfo.put("activeThreads", Thread.activeCount());
+        threadInfo.put("daemonThreads", Thread.getAllStackTraces().entrySet().stream()
+                .mapToInt(entry -> entry.getKey().isDaemon() ? 1 : 0).sum());
+        health.put("threads", threadInfo);
+        
+        // 运行时间信息
+        Map<String, Object> uptimeInfo = new HashMap<>();
+        uptimeInfo.put("startTime", getStartTime());
+        uptimeInfo.put("uptime", getFormattedUptime());
+        uptimeInfo.put("uptimeMillis", getUptime());
+        health.put("uptime", uptimeInfo);
+        
         health.put("status", "UP");
         health.put("timestamp", new Date());
+        health.put("serviceName", "RPC Consumer Service");
+        health.put("version", "1.0.0");
         
         return ResponseEntity.ok(health);
     }
@@ -305,11 +346,32 @@ public class ManagementController {
     // 辅助方法
     
     private String getStartTime() {
-        return new Date(System.currentTimeMillis() - getUptime()).toString();
+        return new Date(startTimeMillis).toString();
     }
     
     private long getUptime() {
-        return System.currentTimeMillis() - 1000000; // 简化实现
+        return System.currentTimeMillis() - startTimeMillis;
+    }
+    
+    /**
+     * 获取格式化的运行时间
+     */
+    private String getFormattedUptime() {
+        long uptimeMs = getUptime();
+        long seconds = uptimeMs / 1000;
+        long minutes = seconds / 60;
+        long hours = minutes / 60;
+        long days = hours / 24;
+        
+        if (days > 0) {
+            return String.format("%d天 %d小时 %d分钟", days, hours % 24, minutes % 60);
+        } else if (hours > 0) {
+            return String.format("%d小时 %d分钟", hours, minutes % 60);
+        } else if (minutes > 0) {
+            return String.format("%d分钟 %d秒", minutes, seconds % 60);
+        } else {
+            return String.format("%d秒", seconds);
+        }
     }
     
     private String extractInterfaceClassName(String serviceName) {

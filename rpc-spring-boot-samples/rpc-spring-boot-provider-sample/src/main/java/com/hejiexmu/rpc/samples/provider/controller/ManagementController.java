@@ -352,10 +352,38 @@ public class ManagementController {
             system.put("availableProcessors", runtime.availableProcessors());
             metrics.put("system", system);
             
-            // 管理界面特定指标
+            // 管理界面特定指标（真实数据）
             Map<String, Object> management = new HashMap<>();
-            management.put("totalPageViews", 100 + new Random().nextInt(1000));
-            management.put("activeUsers", 1 + new Random().nextInt(5));
+            // 从JVM运行时获取真实的线程和连接数据
+            management.put("totalThreads", Thread.activeCount());
+            management.put("peakThreads", ManagementFactory.getThreadMXBean().getPeakThreadCount());
+            management.put("daemonThreads", ManagementFactory.getThreadMXBean().getDaemonThreadCount());
+            
+            // 获取真实的RPC服务统计
+            if (rpcServer != null) {
+                try {
+                    MetricsCollector.MetricsSummary rpcMetrics = rpcServer.getMetricsSummary();
+                    management.put("totalRpcCalls", rpcMetrics.getTotalRequestCount());
+                    management.put("activeConnections", rpcMetrics.getActiveConnectionCount());
+                    management.put("registeredServices", rpcMetrics.getServiceRegistrationCount());
+                } catch (Exception e) {
+                    log.warn("获取RPC指标失败: {}", e.getMessage());
+                    management.put("totalRpcCalls", 0);
+                    management.put("activeConnections", 0);
+                    management.put("registeredServices", 0);
+                }
+            } else {
+                management.put("totalRpcCalls", 0);
+                management.put("activeConnections", 0);
+                management.put("registeredServices", 0);
+            }
+            
+            // 获取真实的内存使用情况
+            MemoryMXBean memBean = ManagementFactory.getMemoryMXBean();
+            long heapUsed = memBean.getHeapMemoryUsage().getUsed();
+            long heapMax = memBean.getHeapMemoryUsage().getMax();
+            management.put("memoryUsagePercent", String.format("%.2f%%", (double) heapUsed / heapMax * 100));
+            
             metrics.put("management", management);
             
         } catch (Exception e) {
@@ -399,11 +427,11 @@ public class ManagementController {
     }
 
     /**
-     * 获取运行时间
+     * 获取运行时间（真实数据）
      */
     private String getUptime() {
         RuntimeMXBean runtimeBean = ManagementFactory.getRuntimeMXBean();
-        long uptime = runtimeBean.getUptime();
+        long uptime = runtimeBean.getUptime(); // 毫秒
         
         long seconds = uptime / 1000;
         long minutes = seconds / 60;
@@ -412,6 +440,14 @@ public class ManagementController {
         
         return String.format("%d天 %d小时 %d分钟 %d秒", 
             days, hours % 24, minutes % 60, seconds % 60);
+    }
+    
+    /**
+     * 获取运行时间（毫秒）
+     */
+    private long getUptimeMillis() {
+        RuntimeMXBean runtimeBean = ManagementFactory.getRuntimeMXBean();
+        return runtimeBean.getUptime();
     }
     
     /**
@@ -430,8 +466,13 @@ public class ManagementController {
         String webPort = environment.getProperty("server.port", "8081");
         String instanceId = currentHost + ":" + webPort;
         
-        // 暂时使用模拟数据，确保功能正常
-        logs = generateMockLogs(lines, instanceId);
+        // 优先读取真实日志文件
+        logs = readActualLogFiles(lines, level, instanceId);
+        
+        // 如果没有读取到真实日志，则生成基本的运行状态日志
+        if (logs.isEmpty()) {
+            logs = generateBasicStatusLogs(lines, instanceId);
+        }
         
         response.put("logs", logs);
         response.put("total", logs.size());
@@ -471,9 +512,9 @@ public class ManagementController {
             }
         }
         
-        // 如果没有找到日志文件，生成模拟数据
+        // 如果没有找到日志文件，生成基于真实系统状态的日志
         if (logs.isEmpty()) {
-            logs = generateMockLogs(lines, instanceId);
+            logs = generateBasicStatusLogs(lines, instanceId);
         }
         
         return logs;
@@ -554,32 +595,59 @@ public class ManagementController {
     }
     
     /**
-     * 生成模拟日志数据
+     * 生成基于真实系统状态的日志数据
      */
-    private List<Map<String, Object>> generateMockLogs(int lines, String instanceId) {
+    private List<Map<String, Object>> generateBasicStatusLogs(int lines, String instanceId) {
         List<Map<String, Object>> logs = new ArrayList<>();
         
-        String[] levels = {"INFO", "WARN", "ERROR", "DEBUG"};
-        String[] messages = {
-            "RPC服务启动成功",
-            "接收到客户端连接请求",
-            "处理RPC调用: getUserInfo",
-            "数据库连接池状态正常",
-            "内存使用率检查",
-            "GC执行完成",
-            "配置文件重新加载",
-            "健康检查通过"
-        };
-        
-        Random random = new Random();
         LocalDateTime now = LocalDateTime.now();
         
-        for (int i = 0; i < lines; i++) {
+        // 生成基于真实系统状态的日志条目
+        for (int i = 0; i < Math.min(lines, 10); i++) {
             Map<String, Object> log = new HashMap<>();
-            log.put("timestamp", now.minusMinutes(i).format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
-            log.put("level", levels[random.nextInt(levels.length)]);
-            log.put("message", "[" + instanceId + "] " + messages[random.nextInt(messages.length)]);
-            log.put("thread", "thread-" + (random.nextInt(10) + 1));
+            LocalDateTime logTime = now.minusMinutes(i * 5);
+            log.put("timestamp", logTime.format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")));
+            
+            switch (i % 4) {
+                case 0:
+                    log.put("level", "INFO");
+                    log.put("message", String.format("[%s] RPC Provider服务运行正常 - 运行时间: %s", instanceId, getUptime()));
+                    log.put("thread", "main");
+                    break;
+                case 1:
+                    Runtime runtime = Runtime.getRuntime();
+                    long usedMemory = runtime.totalMemory() - runtime.freeMemory();
+                    long maxMemory = runtime.maxMemory();
+                    double memoryUsage = (double) usedMemory / maxMemory * 100;
+                    log.put("level", memoryUsage > 80 ? "WARN" : "INFO");
+                    log.put("message", String.format("[%s] 内存使用情况 - 已用: %dMB, 最大: %dMB, 使用率: %.2f%%", 
+                            instanceId, usedMemory / 1024 / 1024, maxMemory / 1024 / 1024, memoryUsage));
+                    log.put("thread", "monitor");
+                    break;
+                case 2:
+                    int activeThreads = Thread.activeCount();
+                    log.put("level", "INFO");
+                    log.put("message", String.format("[%s] 线程状态检查 - 活跃线程数: %d", instanceId, activeThreads));
+                    log.put("thread", "scheduler");
+                    break;
+                case 3:
+                    if (rpcServer != null) {
+                        try {
+                            MetricsCollector.MetricsSummary metrics = rpcServer.getMetricsSummary();
+                            log.put("level", "INFO");
+                            log.put("message", String.format("[%s] RPC服务统计 - 总请求: %d, 成功: %d, 活跃连接: %d", 
+                                    instanceId, metrics.getTotalRequestCount(), metrics.getSuccessRequestCount(), metrics.getActiveConnectionCount()));
+                        } catch (Exception e) {
+                            log.put("level", "WARN");
+                            log.put("message", String.format("[%s] 无法获取RPC服务统计信息: %s", instanceId, e.getMessage()));
+                        }
+                    } else {
+                        log.put("level", "WARN");
+                        log.put("message", String.format("[%s] RPC服务器未初始化", instanceId));
+                    }
+                    log.put("thread", "rpc-monitor");
+                    break;
+            }
             logs.add(log);
         }
         
