@@ -15,7 +15,6 @@ spring:
 # RPC Framework Configuration
 rpc:
   enabled: true
-  
   # Service Registry Configuration
   registry:
     type: zookeeper
@@ -33,7 +32,6 @@ rpc:
   
   # Provider Configuration (not used in consumer)
   # 注意：消费者不再需要配置序列化器，框架会自动从服务发现获取
-
 # Logging Configuration is now handled by logback-spring.xml
 
 # Management Endpoints
