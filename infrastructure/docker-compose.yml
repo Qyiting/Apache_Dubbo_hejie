@@ -14,8 +14,8 @@ services:
       - "3306:3306"
     volumes:
       - mysql_master_data:/var/lib/mysql
-      - ./mysql/master/my.cnf:/etc/mysql/my.cnf
-      - ./mysql/init:/docker-entrypoint-initdb.d
+      - /root/data/mysql/master/my.cnf:/etc/mysql/my.cnf
+      - /root/data/mysql/init:/docker-entrypoint-initdb.d
     command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW
     networks:
       - rpc-network
@@ -33,7 +33,7 @@ services:
       - "3307:3306"
     volumes:
       - mysql_slave_data:/var/lib/mysql
-      - ./mysql/slave/my.cnf:/etc/mysql/my.cnf
+      - /root/data/mysql/slave/my.cnf:/etc/mysql/my.cnf
     command: --server-id=2 --relay-log=mysql-relay-bin --log-slave-updates=1 --read-only=1
     depends_on:
       - mysql-master
@@ -42,86 +42,86 @@ services:
 
   # Redis Cluster Nodes
   redis-node-1:
-    image: redis:7-alpine
+    image: redis:latest
     container_name: redis-node-1
     ports:
       - "7001:7001"
       - "17001:17001"
     volumes:
       - redis_node_1_data:/data
-      - ./redis/redis-node-1.conf:/usr/local/etc/redis/redis.conf
+      - /root/data/redis/redis_node_1/redis-node-1.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
       - rpc-network
 
   redis-node-2:
-    image: redis:7-alpine
+    image: redis:latest
     container_name: redis-node-2
     ports:
       - "7002:7002"
       - "17002:17002"
     volumes:
       - redis_node_2_data:/data
-      - ./redis/redis-node-2.conf:/usr/local/etc/redis/redis.conf
+      - /root/data/redis/redis_node_2/redis-node-2.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
       - rpc-network
 
   redis-node-3:
-    image: redis:7-alpine
+    image: redis:latest
     container_name: redis-node-3
     ports:
       - "7003:7003"
       - "17003:17003"
     volumes:
       - redis_node_3_data:/data
-      - ./redis/redis-node-3.conf:/usr/local/etc/redis/redis.conf
+      - /root/data/redis/redis_node_3/redis-node-3.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
       - rpc-network
 
   redis-node-4:
-    image: redis:7-alpine
+    image: redis:latest
     container_name: redis-node-4
     ports:
       - "7004:7004"
       - "17004:17004"
     volumes:
       - redis_node_4_data:/data
-      - ./redis/redis-node-4.conf:/usr/local/etc/redis/redis.conf
+      - /root/data/redis/redis_node_4/redis/redis-node-4.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
       - rpc-network
 
   redis-node-5:
-    image: redis:7-alpine
+    image: redis:latest
     container_name: redis-node-5
     ports:
       - "7005:7005"
       - "17005:17005"
     volumes:
       - redis_node_5_data:/data
-      - ./redis/redis-node-5.conf:/usr/local/etc/redis/redis.conf
+      - /root/data/redis/redis_node_5/redis-node-5.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
       - rpc-network
 
   redis-node-6:
-    image: redis:7-alpine
+    image: redis:latest
     container_name: redis-node-6
     ports:
       - "7006:7006"
       - "17006:17006"
     volumes:
       - redis_node_6_data:/data
-      - ./redis/redis-node-6.conf:/usr/local/etc/redis/redis.conf
+      - /root/data/redis/redis_node_6/redis-node-6.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
       - rpc-network
 
   # Redis Cluster Setup
   redis-cluster-setup:
-    image: redis:7-alpine
+    image: redis:latest
     container_name: redis-cluster-setup
     depends_on:
       - redis-node-1
