@@ -15,7 +15,7 @@ services:
     volumes:
       - mysql_master_data:/var/lib/mysql
       - /root/data/mysql/master/my.cnf:/etc/mysql/my.cnf
-      - /root/data/mysql/init:/docker-entrypoint-initdb.d
+      - /root/data/mysql/master/init:/docker-entrypoint-initdb.d
     command: --server-id=1 --log-bin=mysql-bin --binlog-format=ROW
     networks:
       - rpc-network
@@ -34,6 +34,7 @@ services:
     volumes:
       - mysql_slave_data:/var/lib/mysql
       - /root/data/mysql/slave/my.cnf:/etc/mysql/my.cnf
+      - /root/data/mysql/slave/init:/docker-entrypoint-initdb.d
     command: --server-id=2 --relay-log=mysql-relay-bin --log-slave-updates=1 --read-only=1
     depends_on:
       - mysql-master
