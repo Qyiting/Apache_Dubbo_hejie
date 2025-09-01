@@ -43,7 +43,7 @@ services:
 
   # Redis Cluster Nodes
   redis-node-1:
-    image: redis:latest
+    image: docker.1ms.run/redis:latest
     container_name: redis-node-1
     ports:
       - "7001:7001"
@@ -56,7 +56,7 @@ services:
       - rpc-network
 
   redis-node-2:
-    image: redis:latest
+    image: docker.1ms.run/redis:latest
     container_name: redis-node-2
     ports:
       - "7002:7002"
@@ -69,7 +69,7 @@ services:
       - rpc-network
 
   redis-node-3:
-    image: redis:latest
+    image: docker.1ms.run/redis:latest
     container_name: redis-node-3
     ports:
       - "7003:7003"
@@ -82,7 +82,7 @@ services:
       - rpc-network
 
   redis-node-4:
-    image: redis:latest
+    image: docker.1ms.run/redis:latest
     container_name: redis-node-4
     ports:
       - "7004:7004"
@@ -95,7 +95,7 @@ services:
       - rpc-network
 
   redis-node-5:
-    image: redis:latest
+    image: docker.1ms.run/redis:latest
     container_name: redis-node-5
     ports:
       - "7005:7005"
@@ -108,7 +108,7 @@ services:
       - rpc-network
 
   redis-node-6:
-    image: redis:latest
+    image: docker.1ms.run/redis:latest
     container_name: redis-node-6
     ports:
       - "7006:7006"
@@ -122,7 +122,7 @@ services:
 
   # Redis Cluster Setup
   redis-cluster-setup:
-    image: redis:latest
+    image: docker.1ms.run/redis:latest
     container_name: redis-cluster-setup
     depends_on:
       - redis-node-1

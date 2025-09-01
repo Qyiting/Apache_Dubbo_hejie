@@ -2,7 +2,7 @@
 -- 此脚本需要在主库和从库启动后手动执行
 
 -- 在主库上创建复制用户
-CREATE USER IF NOT EXISTS 'repl_user'@'%' IDENTIFIED BY 'repl_password123';
+CREATE USER IF NOT EXISTS 'repl_user'@'%' IDENTIFIED WITH mysql_native_password BY 'repl_password123';
 GRANT REPLICATION SLAVE ON *.* TO 'repl_user'@'%';
 FLUSH PRIVILEGES;
 
