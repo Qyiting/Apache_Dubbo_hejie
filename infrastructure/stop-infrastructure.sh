@@ -6,6 +6,6 @@ echo "Stopping RPC Framework Infrastructure..."
 
 # Stop all services
 echo "Stopping MySQL and Redis services..."
-docker-compose down -v
+docker compose down -v
 sleep 10
 echo "Infrastructure stopped!"

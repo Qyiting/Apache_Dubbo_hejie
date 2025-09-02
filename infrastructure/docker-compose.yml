@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # MySQL Master
   mysql-master:
@@ -89,7 +87,7 @@ services:
       - "17004:17004"
     volumes:
       - redis_node_4_data:/data
-      - /root/data/redis/redis_node_4/redis/redis-node-4.conf:/usr/local/etc/redis/redis.conf
+      - /root/data/redis/redis_node_4/redis-node-4.conf:/usr/local/etc/redis/redis.conf
     command: redis-server /usr/local/etc/redis/redis.conf
     networks:
       - rpc-network

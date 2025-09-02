@@ -3,7 +3,7 @@
 # This script Stop and Clear MySQL master-slave replication and Redis cluster
 echo "Stopping and clearing RPC Framework Infrastructure..."
 echo "Stopping containers and networks..."
-docker-compose down
+docker compose down
 echo "Listing project volumes from docker-compose.yml..."
 VOLUMES=$(docker compose config --volumes)
 if [ -z "$VOLUMES" ]; then

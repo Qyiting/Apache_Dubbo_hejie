@@ -7,7 +7,7 @@ echo "Starting RPC Framework Infrastructure..."
 
 # Start all services
 echo "Starting MySQL and Redis services..."
-docker-compose up -d mysql-master mysql-slave redis-node-1 redis-node-2 redis-node-3 redis-node-4 redis-node-5 redis-node-6
+docker compose up -d mysql-master mysql-slave redis-node-1 redis-node-2 redis-node-3 redis-node-4 redis-node-5 redis-node-6
 
 # Wait for MySQL services to be ready
 echo "Waiting for MySQL services to be ready..."
@@ -45,14 +45,14 @@ docker exec mysql-slave mysql -uroot -proot123 -e "SHOW SLAVE STATUS\G" | grep -
 
 # Wait for Redis nodes to be ready
 echo "Waiting for Redis nodes to be ready..."
-sleep 10
+sleep 20
 
 # Create Redis cluster
 echo "Creating Redis cluster..."
-docker-compose up -d redis-cluster-setup
+docker compose up -d redis-cluster-setup
 
 # Wait for cluster setup to complete
-sleep 15
+sleep 10
 
 # Check Redis cluster status
 echo "Checking Redis cluster status..."
@@ -70,7 +70,7 @@ echo "  MySQL root: root123"
 echo "  MySQL app user: rpc_app / rpc_app_pass123"
 echo "  Default admin user: admin / admin123"
 echo ""
-echo "To stop all services: docker-compose down"
-echo "To view logs: docker-compose logs [service-name]"
+echo "To stop all services: docker compose down"
+echo "To view logs: docker compose logs [service-name]"
 echo "To use stop.sh to stop all services: ./stop-infrastructure.sh"
 echo "To completely clear services and data volumes: ./stop-servicesAndVolumes.sh"
