@@ -24,6 +24,6 @@ SHOW SLAVE STATUS\G
 */
 
 -- 创建应用程序数据库用户
-CREATE USER IF NOT EXISTS 'rpc_app'@'%' IDENTIFIED BY 'rpc_app_pass123';
+CREATE USER IF NOT EXISTS 'rpc_app'@'%' IDENTIFIED WITH mysql_native_password BY 'rpc_app_pass123';
 GRANT SELECT, INSERT, UPDATE, DELETE ON rpc_auth.* TO 'rpc_app'@'%';
 FLUSH PRIVILEGES;

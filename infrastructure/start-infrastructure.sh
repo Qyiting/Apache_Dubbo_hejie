@@ -11,7 +11,7 @@ docker-compose up -d mysql-master mysql-slave redis-node-1 redis-node-2 redis-no
 
 # Wait for MySQL services to be ready
 echo "Waiting for MySQL services to be ready..."
-sleep 30
+sleep 20
 
 # Check MySQL master status
 echo "Checking MySQL master status..."
@@ -31,12 +31,12 @@ echo "Master log position: $LOG_POS"
 # Configure slave
 echo "Configuring MySQL slave..."
 docker exec mysql-slave mysql -uroot -proot123 -e "
-CHANGE MASTER TO
-  MASTER_HOST='mysql-master',
-  MASTER_USER='repl_user',
-  MASTER_PASSWORD='repl_password123',
-  MASTER_AUTO_POSITION=1;
-START SLAVE;
+CHANGE REPLICATION SOURCE TO
+  SOURCE_HOST='mysql-master',
+  SOURCE_USER='repl_user',
+  SOURCE_PASSWORD='repl_password123',
+  SOURCE_AUTO_POSITION=1;
+START REPLICA;
 "
 
 # Check slave status
@@ -57,13 +57,13 @@ sleep 15
 # Check Redis cluster status
 echo "Checking Redis cluster status..."
 docker exec redis-node-1 redis-cli -p 7001 cluster nodes
-
+MY_IP=$(ip addr show ens33 | grep "inet " | awk '{print $2}' | cut -d/ -f1)
 echo "Infrastructure setup completed!"
 echo ""
 echo "Services available:"
-echo "  MySQL Master: localhost:3306"
-echo "  MySQL Slave:  localhost:3307"
-echo "  Redis Cluster: localhost:7001-7006"
+echo "  MySQL Master: $MY_IP:3306"
+echo "  MySQL Slave:  $MY_IP:3307"
+echo "  Redis Cluster: $MY_IP:7001-7006"
 echo ""
 echo "Default credentials:"
 echo "  MySQL root: root123"
@@ -72,3 +72,5 @@ echo "  Default admin user: admin / admin123"
 echo ""
 echo "To stop all services: docker-compose down"
 echo "To view logs: docker-compose logs [service-name]"
+echo "To use stop.sh to stop all services: ./stop-infrastructure.sh"
+echo "To completely clear services and data volumes: ./stop-servicesAndVolumes.sh"
