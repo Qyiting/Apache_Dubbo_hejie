@@ -11,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.annotation.AnnotationUtils;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.lang.reflect.Method;
 
@@ -154,8 +155,11 @@ public class DataSourceAspect {
      */
     private boolean isReadOnlyTransaction() {
         try {
-            // 这里可以通过Spring的事务管理器来判断当前事务是否为只读
-            // 由于复杂性，这里简化处理，实际项目中可以根据需要实现
+            // 先判断当前是否有事务
+            if(TransactionSynchronizationManager.isActualTransactionActive()) {
+                // 如果有事务，则判断事务是否为只读事务
+                return TransactionSynchronizationManager.isCurrentTransactionReadOnly();
+            }
             return false;
         } catch (Exception e) {
             logger.debug("检查事务只读属性失败", e);

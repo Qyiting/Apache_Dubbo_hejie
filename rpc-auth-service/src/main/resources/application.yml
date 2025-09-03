@@ -12,16 +12,16 @@ spring:
   application:
     name: rpc-auth-service
   
-  profiles:
-    active: dev
+#  profiles:
+#    active: dev
   
   # 数据源配置
   datasource:
     master:
       driver-class-name: com.mysql.cj.jdbc.Driver
-      url: jdbc:mysql://localhost:3306/rpc_auth?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      url: jdbc:mysql://192.168.109.103:3306/rpc_auth?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
       username: root
-      password: 123456
+      password: root123
       hikari:
         pool-name: MasterHikariPool
         minimum-idle: 5
@@ -34,9 +34,9 @@ spring:
     
     slave:
       driver-class-name: com.mysql.cj.jdbc.Driver
-      url: jdbc:mysql://localhost:3307/rpc_auth?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      url: jdbc:mysql://192.168.109.103:3307/rpc_auth?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
       username: root
-      password: 123456
+      password: root123
       hikari:
         pool-name: SlaveHikariPool
         minimum-idle: 5
@@ -49,17 +49,17 @@ spring:
   
   # Redis配置
   redis:
-    host: localhost
-    port: 6379
+    host: 192.168.109.103
+    port: 7001
     password: 
     database: 0
-    timeout: 3000ms
-    lettuce:
-      pool:
-        max-active: 20
-        max-idle: 10
-        min-idle: 5
-        max-wait: 3000ms
+    timeout: 3000
+    lettuce: {}
+    pool:
+      max-active: 20
+      max-idle: 10
+      min-idle: 5
+      max-wait: 3000
   
   # Jackson配置
   jackson:
@@ -76,7 +76,7 @@ spring:
   cache:
     type: redis
     redis:
-      time-to-live: 3600000
+      time-to-live: 3600000 # 缓存过期时间为1h
       cache-null-values: false
       use-key-prefix: true
       key-prefix: "auth:cache:"
@@ -93,8 +93,10 @@ logging:
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
   file:
     name: logs/auth-service.log
-    max-size: 100MB
-    max-history: 30
+  logback:
+    rollingpolicy:
+      max-file-size: 50MB # 单个日志文件最大大小
+      max-history: 10
 
 # 管理端点配置
 management:
@@ -105,9 +107,9 @@ management:
   endpoint:
     health:
       show-details: when-authorized
-  metrics:
-    export:
-      prometheus:
+  prometheus:
+    metrics:
+      export:
         enabled: true
 
 # 自定义配置
@@ -146,9 +148,9 @@ auth:
       max-age: 3600
     
     rate-limit:
-      enabled: true
-      requests-per-minute: 60
-      burst-capacity: 100
+      enabled: true # 开启限流
+      requests-per-minute: 60 # 每分钟最大60个请求
+      burst-capacity: 100 # 突发流量容量上限（类似桶大小），允许短时间内最大 100 个请求
 
 ---
 # 开发环境配置
@@ -159,9 +161,9 @@ spring:
   
   datasource:
     master:
-      url: jdbc:mysql://localhost:3306/rpc_auth_dev?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      url: jdbc:mysql://192.168.109.103:3306/rpc_auth_dev?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     slave:
-      url: jdbc:mysql://localhost:3307/rpc_auth_dev?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      url: jdbc:mysql://192.168.109.103:3307/rpc_auth_dev?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
   
   redis:
     database: 1
@@ -180,17 +182,17 @@ spring:
   
   datasource:
     master:
-      url: jdbc:mysql://test-mysql:3306/rpc_auth_test?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      url: jdbc:mysql://192.168.109.103:3306/rpc_auth_test?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     slave:
-      url: jdbc:mysql://test-mysql-slave:3307/rpc_auth_test?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+      url: jdbc:mysql://192.168.109.103:3307/rpc_auth_test?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
   
   redis:
-    host: test-redis
+    host: 192.168.109.103
     database: 2
 
 logging:
   level:
-    root: WARN
+    root: INFO
     com.hejiexmu.rpc.auth: INFO
 
 ---
@@ -200,19 +202,19 @@ spring:
     activate:
       on-profile: prod
   
-  datasource:
-    master:
-      url: jdbc:mysql://prod-mysql:3306/rpc_auth?useUnicode=true&characterEncoding=utf8&useSSL=true&serverTimezone=Asia/Shanghai
-      username: ${DB_USERNAME:rpc_user}
-      password: ${DB_PASSWORD:}
-      hikari:
-        maximum-pool-size: 50
-    slave:
-      url: jdbc:mysql://prod-mysql-slave:3307/rpc_auth?useUnicode=true&characterEncoding=utf8&useSSL=true&serverTimezone=Asia/Shanghai
-      username: ${DB_USERNAME:rpc_user}
-      password: ${DB_PASSWORD:}
-      hikari:
-        maximum-pool-size: 30
+#  datasource:
+#    master:
+#      url: jdbc:mysql://prod-mysql:3306/rpc_auth?useUnicode=true&characterEncoding=utf8&useSSL=true&serverTimezone=Asia/Shanghai
+#      username: ${DB_USERNAME:rpc_user}
+#      password: ${DB_PASSWORD:}
+#      hikari:
+#        maximum-pool-size: 50
+#    slave:
+#      url: jdbc:mysql://prod-mysql-slave:3307/rpc_auth?useUnicode=true&characterEncoding=utf8&useSSL=true&serverTimezone=Asia/Shanghai
+#      username: ${DB_USERNAME:rpc_user}
+#      password: ${DB_PASSWORD:}
+#      hikari:
+#        maximum-pool-size: 30
   
   redis:
     host: prod-redis
@@ -220,17 +222,17 @@ spring:
     database: 0
     cluster:
       nodes:
-        - prod-redis-1:6379
-        - prod-redis-2:6379
-        - prod-redis-3:6379
+        - prod-redis-1:7001
+        - prod-redis-2:7002
+        - prod-redis-3:7003
 
 auth:
   jwt:
     secret: ${JWT_SECRET:}
     
-logging:
-  level:
-    root: WARN
-    com.hejiexmu.rpc.auth: INFO
-  file:
-    name: /var/log/auth-service/auth-service.log
+#logging:
+#  level:
+#    root: WARN
+#    com.hejiexmu.rpc.auth: INFO
+#  file:
+#    name: /var/log/auth-service/auth-service.log

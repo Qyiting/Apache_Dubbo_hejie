@@ -60,11 +60,11 @@ public class CacheStrategyConfig extends CachingConfigurerSupport {
         template.setConnectionFactory(connectionFactory);
         
         // 使用Jackson2JsonRedisSerializer来序列化和反序列化redis的value值
-        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(Object.class);
         ObjectMapper objectMapper = new ObjectMapper();
         objectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
         objectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
-        jackson2JsonRedisSerializer.setObjectMapper(objectMapper);
+        // Spring Data Redis 3.0+ 使用构造函数传入ObjectMapper
+        Jackson2JsonRedisSerializer<Object> jackson2JsonRedisSerializer = new Jackson2JsonRedisSerializer<>(objectMapper, Object.class);
         
         // 使用StringRedisSerializer来序列化和反序列化redis的key值
         StringRedisSerializer stringRedisSerializer = new StringRedisSerializer();
@@ -88,10 +88,14 @@ public class CacheStrategyConfig extends CachingConfigurerSupport {
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory connectionFactory) {
         // 配置序列化
+        ObjectMapper cacheObjectMapper = new ObjectMapper();
+        cacheObjectMapper.setVisibility(PropertyAccessor.ALL, JsonAutoDetect.Visibility.ANY);
+        cacheObjectMapper.activateDefaultTyping(LaissezFaireSubTypeValidator.instance, ObjectMapper.DefaultTyping.NON_FINAL);
+        
         RedisCacheConfiguration config = RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofHours(1)) // 默认缓存时间1小时
                 .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(Object.class)))
+                .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(cacheObjectMapper, Object.class)))
                 .disableCachingNullValues(); // 不缓存空值
         
         // 不同缓存的配置
@@ -102,7 +106,7 @@ public class CacheStrategyConfig extends CachingConfigurerSupport {
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofMinutes(30))
                         .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(Object.class)))
+                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(cacheObjectMapper, Object.class)))
                         .disableCachingNullValues());
         
         // 权限信息缓存 - 1小时
@@ -110,7 +114,7 @@ public class CacheStrategyConfig extends CachingConfigurerSupport {
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofHours(1))
                         .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(Object.class)))
+                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(cacheObjectMapper, Object.class)))
                         .disableCachingNullValues());
         
         // 角色信息缓存 - 1小时
@@ -118,7 +122,7 @@ public class CacheStrategyConfig extends CachingConfigurerSupport {
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofHours(1))
                         .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(Object.class)))
+                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(cacheObjectMapper, Object.class)))
                         .disableCachingNullValues());
         
         // 会话信息缓存 - 2小时
@@ -126,7 +130,7 @@ public class CacheStrategyConfig extends CachingConfigurerSupport {
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofHours(2))
                         .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(Object.class)))
+                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(cacheObjectMapper, Object.class)))
                         .disableCachingNullValues());
         
         // 验证码缓存 - 5分钟
@@ -134,7 +138,7 @@ public class CacheStrategyConfig extends CachingConfigurerSupport {
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofMinutes(5))
                         .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(Object.class)))
+                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(cacheObjectMapper, Object.class)))
                         .disableCachingNullValues());
         
         // 登录失败次数缓存 - 15分钟
@@ -142,7 +146,7 @@ public class CacheStrategyConfig extends CachingConfigurerSupport {
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofMinutes(15))
                         .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(Object.class)))
+                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(cacheObjectMapper, Object.class)))
                         .disableCachingNullValues());
         
         // 短期缓存 - 5分钟
@@ -150,7 +154,7 @@ public class CacheStrategyConfig extends CachingConfigurerSupport {
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofMinutes(5))
                         .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(Object.class)))
+                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(cacheObjectMapper, Object.class)))
                         .disableCachingNullValues());
         
         // 长期缓存 - 24小时
@@ -158,7 +162,7 @@ public class CacheStrategyConfig extends CachingConfigurerSupport {
                 RedisCacheConfiguration.defaultCacheConfig()
                         .entryTtl(Duration.ofHours(24))
                         .serializeKeysWith(RedisSerializationContext.SerializationPair.fromSerializer(new StringRedisSerializer()))
-                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(Object.class)))
+                        .serializeValuesWith(RedisSerializationContext.SerializationPair.fromSerializer(new Jackson2JsonRedisSerializer<>(cacheObjectMapper, Object.class)))
                         .disableCachingNullValues());
         
         return RedisCacheManager.builder(connectionFactory)
