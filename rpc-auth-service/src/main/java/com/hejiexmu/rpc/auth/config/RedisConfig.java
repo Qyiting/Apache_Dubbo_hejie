@@ -8,7 +8,9 @@ import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.data.redis.connection.RedisClusterConfiguration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.connection.RedisNode;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -65,8 +67,8 @@ public class RedisConfig {
      * 创建集群模式连接工厂
      */
     private RedisConnectionFactory createClusterConnectionFactory(RedisProperties redisProperties) {
-        org.springframework.data.redis.connection.RedisClusterConfiguration clusterConfig = 
-                new org.springframework.data.redis.connection.RedisClusterConfiguration();
+        RedisClusterConfiguration clusterConfig =
+                new RedisClusterConfiguration();
         
         // 添加集群节点
         for (String node : redisProperties.getCluster().getNodes()) {
@@ -74,7 +76,7 @@ public class RedisConfig {
             if (parts.length == 2) {
                 String host = parts[0];
                 int port = Integer.parseInt(parts[1]);
-                clusterConfig.addClusterNode(host, port);
+                clusterConfig.addClusterNode(new RedisNode(host, port));
             }
         }
         

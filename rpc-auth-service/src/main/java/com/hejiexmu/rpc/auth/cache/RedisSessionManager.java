@@ -537,11 +537,11 @@ public class RedisSessionManager {
     private DefaultRedisScript<Long> cleanupExpiredScript() {
         DefaultRedisScript<Long> script = new DefaultRedisScript<>();
         script.setScriptText(
-            "local sessionPattern = ARGV[1]\n" +
-            "local userSessionsPattern = ARGV[2]\n" +
-            "local sessionIndexPattern = ARGV[3]\n" +
-            "local onlineUsersKey = ARGV[4]\n" +
-            "local currentTime = tonumber(ARGV[5])\n" +
+            "local sessionPattern = KEYS[1]\n" +
+            "local userSessionsPattern = KEYS[2]\n" +
+            "local sessionIndexPattern = KEYS[3]\n" +
+            "local onlineUsersKey = KEYS[4]\n" +
+            "local currentTime = tonumber(ARGV[1])\n" +
             "\n" +
             "local cleanedCount = 0\n" +
             "\n" +
